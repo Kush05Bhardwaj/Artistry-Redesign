@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artistry Frontend</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Artistry Backend Interface</h1>
+        
+        <!-- Main Gateway Service (Recommended) -->
+        <section class="service-section">
+            <h2>Gateway Service (Full Pipeline)</h2>
+            <div class="form-group">
+                <label for="gateway-image">Image:</label>
+                <input type="file" id="gateway-image" accept="image/*">
+            </div>
+            <div class="form-group">
+                <label for="gateway-prompt">Prompt:</label>
+                <textarea id="gateway-prompt" placeholder="Enter your prompt here..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="gateway-steps">Steps (optional):</label>
+                <input type="number" id="gateway-steps" value="20" min="1" max="100">
+            </div>
+            <button onclick="createRoom()">Start Processing</button>
+            <div id="gateway-result" class="result-section"></div>
+        </section>
+
+        <!-- Individual Services -->
+        <section class="service-section">
+            <h2>Individual Services</h2>
+            
+            <!-- Detect Service -->
+            <div class="sub-service">
+                <h3>Object Detection</h3>
+                <div class="form-group">
+                    <label for="detect-image">Image:</label>
+                    <input type="file" id="detect-image" accept="image/*">
+                </div>
+                <button onclick="detectObjects()">Detect Objects</button>
+                <div id="detect-result" class="result-section"></div>
+            </div>
+
+            <!-- Segment Service -->
+            <div class="sub-service">
+                <h3>Image Segmentation</h3>
+                <div class="form-group">
+                    <label for="segment-image">Image:</label>
+                    <input type="file" id="segment-image" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label for="segment-bboxes">Bounding Boxes (JSON):</label>
+                    <textarea id="segment-bboxes" placeholder='[{"x1":10,"y1":10,"x2":100,"y2":100,"label":"object"}]'></textarea>
+                </div>
+                <button onclick="segmentImage()">Segment Image</button>
+                <div id="segment-result" class="result-section"></div>
+            </div>
+
+            <!-- Advise Service -->
+            <div class="sub-service">
+                <h3>AI Advice</h3>
+                <div class="form-group">
+                    <label for="advise-prompt">Prompt:</label>
+                    <textarea id="advise-prompt" placeholder="Ask for advice..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="advise-masks">Masks (JSON, optional):</label>
+                    <textarea id="advise-masks" placeholder="[]"></textarea>
+                </div>
+                <button onclick="getAdvice()">Get Advice</button>
+                <div id="advise-result" class="result-section"></div>
+            </div>
+
+            <!-- Generate Service -->
+            <div class="sub-service">
+                <h3>Image Generation</h3>
+                <div class="form-group">
+                    <label for="generate-image">Control Image:</label>
+                    <input type="file" id="generate-image" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label for="generate-prompt">Prompt:</label>
+                    <textarea id="generate-prompt" placeholder="Describe what to generate..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="generate-steps">Steps:</label>
+                    <input type="number" id="generate-steps" value="20" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="generate-masks">Masks (JSON, optional):</label>
+                    <textarea id="generate-masks" placeholder="[]"></textarea>
+                </div>
+                <button onclick="generateImage()">Generate Image</button>
+                <div id="generate-result" class="result-section"></div>
+            </div>
+        </section>
+
+        <!-- Job Status Checker -->
+        <section class="service-section">
+            <h2>Check Job Status</h2>
+            <div class="form-group">
+                <label for="job-id">Job ID:</label>
+                <input type="text" id="job-id" placeholder="Enter job ID...">
+            </div>
+            <button onclick="checkJobStatus()">Check Status</button>
+            <div id="job-status-result" class="result-section"></div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
