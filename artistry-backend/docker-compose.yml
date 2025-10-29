@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # MongoDB Database (commented out - using MongoDB Atlas)
+  # mongo:
+  #   image: mongo:7
+  #   container_name: artistry-mongodb
+  #   restart: unless-stopped
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: example
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   networks:
+  #     - artistry-network
+
+  # Gateway Service - API Router (commented out - MongoDB Atlas needs config)
+  # gateway:
+  #   build:
+  #     context: ./gateway
+  #     dockerfile: Dockerfile
+  #   container_name: artistry-gateway
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - MONGO_URI=${MONGO_URI}
+  #     - DETECT_URL=http://detect:8001/detect
+  #     - SEGMENT_URL=http://segment:8002/segment
+  #     - ADVISE_URL=http://advise:8003/advise
+  #     - GENERATE_URL=http://generate:8004/render
+  #   depends_on:
+  #     - detect
+  #     - segment
+  #     - advise
+  #     - generate
+  #   networks:
+  #     - artistry-network
+
+  # Detect Service - YOLOv8 Object Detection
+  detect:
+    build:
+      context: ./detect
+      dockerfile: Dockerfile
+    container_name: artistry-detect
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    networks:
+      - artistry-network
+
+  # Segment Service - MobileSAM Segmentation
+  segment:
+    build:
+      context: ./segment
+      dockerfile: Dockerfile
+    container_name: artistry-segment
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    networks:
+      - artistry-network
+
+  # Advise Service - LLaVA AI Design Advisor
+  advise:
+    build:
+      context: ./advise
+      dockerfile: Dockerfile
+    container_name: artistry-advise
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+    networks:
+      - artistry-network
+
+  # Generate Service - Stable Diffusion + ControlNet
+  generate:
+    build:
+      context: ./generate
+      dockerfile: Dockerfile
+    container_name: artistry-generate
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    networks:
+      - artistry-network
+
+networks:
+  artistry-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
