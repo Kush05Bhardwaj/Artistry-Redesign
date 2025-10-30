@@ -1,35 +1,50 @@
 import { useState } from "react"
 import { Lightbulb, CheckCircle2, Loader2 } from "lucide-react"
 import { Link } from "react-router-dom"
+import { getDesignAdvice } from "../services/api"
 
 export default function Advise() {
   const [uploadedImage, setUploadedImage] = useState(null)
+  const [imageFile, setImageFile] = useState(null)
   const [advice, setAdvice] = useState([])
   const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState(null)
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
     if (file) {
+      setImageFile(file) // Store File object for API
+      
       const reader = new FileReader()
       reader.onload = (event) => {
         setUploadedImage(event.target?.result)
       }
       reader.readAsDataURL(file)
+      
+      // Reset previous results
+      setAdvice([])
+      setError(null)
     }
   }
 
   const handleGetAdvice = async () => {
+    if (!imageFile) {
+      setError("Please upload an image first")
+      return
+    }
+    
     setIsProcessing(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setAdvice([
-      "Switch to light neutral wall colors to brighten the space",
-      "Add textured throw pillows for depth and warmth",
-      "Replace harsh lighting with warm ambient lighting",
-      "Introduce plants for natural elements",
-      "Add a statement piece like a colorful rug",
-      "Consider adding wall art for visual interest",
-    ])
-    setIsProcessing(false)
+    setError(null)
+    
+    try {
+      const result = await getDesignAdvice(imageFile)
+      setAdvice(result.advice || [])
+    } catch (err) {
+      setError(err.message)
+      console.error("Advice generation error:", err)
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (
@@ -50,6 +65,11 @@ export default function Advise() {
             {uploadedImage ? (
               <div>
                 <img src={uploadedImage} alt="Uploaded room" className="w-full rounded-lg mb-4 max-h-96 object-cover" />
+                {error && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                    {error}
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
                     onClick={handleGetAdvice}
@@ -68,7 +88,9 @@ export default function Advise() {
                   <button
                     onClick={() => {
                       setUploadedImage(null)
+                      setImageFile(null)
                       setAdvice([])
+                      setError(null)
                     }}
                     className="px-6 py-3 border-2 border-purple-700 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-medium"
                   >

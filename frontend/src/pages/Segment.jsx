@@ -1,28 +1,50 @@
 import { useState } from "react"
 import { Layout, CheckCircle2, Loader2 } from "lucide-react"
 import { Link } from "react-router-dom"
+import { segmentImage } from "../services/api"
 
 export default function Segment() {
   const [uploadedImage, setUploadedImage] = useState(null)
+  const [imageFile, setImageFile] = useState(null)
   const [segmentedImage, setSegmentedImage] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState(null)
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
     if (file) {
+      setImageFile(file) // Store File object for API
+      
       const reader = new FileReader()
       reader.onload = (event) => {
         setUploadedImage(event.target?.result)
       }
       reader.readAsDataURL(file)
+      
+      // Reset previous results
+      setSegmentedImage(null)
+      setError(null)
     }
   }
 
   const handleSegment = async () => {
+    if (!imageFile) {
+      setError("Please upload an image first")
+      return
+    }
+    
     setIsProcessing(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setSegmentedImage(uploadedImage)
-    setIsProcessing(false)
+    setError(null)
+    
+    try {
+      const result = await segmentImage(imageFile, 10)
+      setSegmentedImage(result.segmentedImage)
+    } catch (err) {
+      setError(err.message)
+      console.error("Segmentation error:", err)
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (
@@ -43,6 +65,11 @@ export default function Segment() {
             {uploadedImage ? (
               <div>
                 <img src={uploadedImage} alt="Uploaded room" className="w-full rounded-lg mb-4 max-h-96 object-cover" />
+                {error && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                    {error}
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
                     onClick={handleSegment}
@@ -61,7 +88,9 @@ export default function Segment() {
                   <button
                     onClick={() => {
                       setUploadedImage(null)
+                      setImageFile(null)
                       setSegmentedImage(null)
+                      setError(null)
                     }}
                     className="px-6 py-3 border-2 border-blue-700 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors font-medium"
                   >

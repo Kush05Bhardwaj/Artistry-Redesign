@@ -3,6 +3,7 @@ import uuid
 import base64
 import asyncio
 from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
 import httpx
@@ -17,6 +18,15 @@ ADVISE_URL = os.getenv("ADVISE_URL", "http://advise:8000/advise")
 GENERATE_URL = os.getenv("GENERATE_URL", "http://generate:8000/render")
 
 app = FastAPI(title="Artistry Gateway (prototype)")
+
+# Add CORS middleware for frontend integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 mongo = AsyncIOMotorClient(MONGO_URI)[MONGO_DB]
 
 client_timeout = httpx.Timeout(120.0, connect=10.0)

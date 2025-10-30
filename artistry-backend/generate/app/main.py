@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from diffusers import StableDiffusionControlNetPipeline, ControlNetModel, EulerAncestralDiscreteScheduler
 import torch, base64, io
@@ -7,6 +8,15 @@ import numpy as np
 import cv2  # for real Canny edge detection
 
 app = FastAPI(title="Stable Diffusion + ControlNet Service")
+
+# Add CORS middleware for frontend integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Choose device
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -74,3 +84,46 @@ def render(req: RenderReq):
     b64_img = base64.b64encode(buf.getvalue()).decode()
 
     return {"image_b64": b64_img}
+
+@app.post("/generate/")
+async def generate_file(
+    file: UploadFile = File(...),
+    prompt: str = "Modern minimalist interior design",
+    num_inference_steps: int = 20,
+    guidance_scale: float = 7.5,
+    controlnet_conditioning_scale: float = 0.5
+):
+    """File upload endpoint for frontend integration"""
+    # Read and process image
+    file_bytes = await file.read()
+    image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
+    image = image.resize((512, 512))
+    
+    # Generate Canny edge control image
+    control_image = create_canny_map(image)
+    
+    # Run diffusion pipeline
+    result = pipe(
+        prompt=prompt,
+        image=control_image,  # ControlNet uses canny edges
+        guidance_scale=guidance_scale,
+        num_inference_steps=num_inference_steps,
+        controlnet_conditioning_scale=controlnet_conditioning_scale
+    ).images[0]
+    
+    # Convert to base64
+    buf = io.BytesIO()
+    result.save(buf, format="PNG")
+    generated_b64 = f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
+    
+    # Also return canny image for debugging
+    canny_buf = io.BytesIO()
+    control_image.save(canny_buf, format="PNG")
+    canny_b64 = f"data:image/png;base64,{base64.b64encode(canny_buf.getvalue()).decode()}"
+    
+    return {
+        "generated_image": generated_b64,
+        "canny_image": canny_b64,
+        "prompt": prompt
+    }
+

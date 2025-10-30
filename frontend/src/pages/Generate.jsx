@@ -1,28 +1,54 @@
 import { useState } from "react"
 import { Wand2, Loader2 } from "lucide-react"
 import { Link } from "react-router-dom"
+import { generateDesign } from "../services/api"
 
 export default function Generate() {
   const [uploadedImage, setUploadedImage] = useState(null)
+  const [imageFile, setImageFile] = useState(null)
   const [generatedImage, setGeneratedImage] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState(null)
+  const [prompt, setPrompt] = useState("Modern minimalist interior design")
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
     if (file) {
+      setImageFile(file) // Store File object for API
+      
       const reader = new FileReader()
       reader.onload = (event) => {
         setUploadedImage(event.target?.result)
       }
       reader.readAsDataURL(file)
+      
+      // Reset previous results
+      setGeneratedImage(null)
+      setError(null)
     }
   }
 
   const handleGenerate = async () => {
+    if (!imageFile) {
+      setError("Please upload an image first")
+      return
+    }
+    
     setIsProcessing(true)
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-    setGeneratedImage(uploadedImage) // In real app, this would be the AI-generated image
-    setIsProcessing(false)
+    setError(null)
+    
+    try {
+      const result = await generateDesign(imageFile, prompt, {
+        numInferenceSteps: 20,
+        guidanceScale: 7.5
+      })
+      setGeneratedImage(result.generatedImage)
+    } catch (err) {
+      setError(err.message)
+      console.error("Generation error:", err)
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (
@@ -43,6 +69,23 @@ export default function Generate() {
             {uploadedImage ? (
               <div>
                 <img src={uploadedImage} alt="Uploaded room" className="w-full rounded-lg mb-4 max-h-96 object-cover" />
+                {error && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                    {error}
+                  </div>
+                )}
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Design Prompt
+                  </label>
+                  <input
+                    type="text"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="Describe the design style..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
                 <div className="flex gap-3">
                   <button
                     onClick={handleGenerate}
@@ -52,7 +95,7 @@ export default function Generate() {
                     {isProcessing ? (
                       <>
                         <Loader2 className="inline-block mr-2 h-4 w-4 animate-spin" />
-                        Generating...
+                        Generating (30-60s)...
                       </>
                     ) : (
                       "Generate Design"
@@ -61,7 +104,9 @@ export default function Generate() {
                   <button
                     onClick={() => {
                       setUploadedImage(null)
+                      setImageFile(null)
                       setGeneratedImage(null)
+                      setError(null)
                     }}
                     className="px-6 py-3 border-2 border-purple-700 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-medium"
                   >

@@ -14,7 +14,7 @@ export default function Detect() {
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
     if (file) {
-      setImageFile(file) // Store File object for API
+      setImageFile(file) // Store File object for API call
       
       const reader = new FileReader()
       reader.onload = (event) => {
@@ -164,4 +164,3 @@ export default function Detect() {
     </main>
   )
 }
-
