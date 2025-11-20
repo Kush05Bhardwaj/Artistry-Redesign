@@ -10,14 +10,16 @@ import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://root:example@mongo:27017")
+# MongoDB is optional - only needed for full workflow persistence
+MONGO_URI = os.getenv("MONGO_URI", None)
 MONGO_DB = os.getenv("MONGO_DB", "artistry")
-DETECT_URL = os.getenv("DETECT_URL", "http://detect:8000/detect")
-SEGMENT_URL = os.getenv("SEGMENT_URL", "http://segment:8000/segment")
-ADVISE_URL = os.getenv("ADVISE_URL", "http://advise:8000/advise")
-GENERATE_URL = os.getenv("GENERATE_URL", "http://generate:8000/render")
+# Development: Use localhost URLs with correct ports
+DETECT_URL = os.getenv("DETECT_URL", "http://localhost:8001/detect/")
+SEGMENT_URL = os.getenv("SEGMENT_URL", "http://localhost:8002/segment/")
+ADVISE_URL = os.getenv("ADVISE_URL", "http://localhost:8003/advise/")
+GENERATE_URL = os.getenv("GENERATE_URL", "http://localhost:8004/generate/")
 
-app = FastAPI(title="Artistry Gateway (prototype)")
+app = FastAPI(title="Artistry Gateway")
 
 # Add CORS middleware for frontend integration
 app.add_middleware(
@@ -27,7 +29,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-mongo = AsyncIOMotorClient(MONGO_URI)[MONGO_DB]
+
+# MongoDB connection (optional)
+mongo = None
+if MONGO_URI:
+    try:
+        mongo = AsyncIOMotorClient(MONGO_URI)[MONGO_DB]
+        print("✓ MongoDB connected")
+    except Exception as e:
+        print(f"⚠ MongoDB not available: {e}")
+        print("  Gateway will work without persistence")
+else:
+    print("⚠ MongoDB not configured - running without persistence")
 
 client_timeout = httpx.Timeout(120.0, connect=10.0)
 
@@ -36,9 +49,19 @@ class CreateRoomReq(BaseModel):
     prompt: str | None = ""
     options: dict | None = {}
 
+@app.get("/")
+async def root():
+    """Health check endpoint"""
+    return {"status": "ok", "service": "Artistry Gateway", "version": "1.0"}
+
 @app.on_event("startup")
 async def startup():
-    await mongo.jobs.create_index("status")
+    if mongo:
+        try:
+            await mongo.jobs.create_index("status")
+            print("✓ MongoDB indexes created")
+        except Exception as e:
+            print(f"⚠ MongoDB index creation failed: {e}")
 
 async def call_service(url: str, json: dict, timeout: float = 60.0):
     async with httpx.AsyncClient(timeout=client_timeout) as c:
@@ -67,6 +90,9 @@ async def process_job(job_id: str, payload: CreateRoomReq):
 
 @app.post("/rooms")
 async def create_room(payload: CreateRoomReq, background_tasks: BackgroundTasks):
+    if not mongo:
+        raise HTTPException(status_code=503, detail="MongoDB not configured. Please set MONGO_URI environment variable.")
+    
     job_id = str(uuid.uuid4())
     await mongo.jobs.insert_one({"_id": job_id, "status": "pending"})
     # schedule background
@@ -75,6 +101,9 @@ async def create_room(payload: CreateRoomReq, background_tasks: BackgroundTasks)
 
 @app.get("/rooms/{job_id}")
 async def get_room(job_id: str):
+    if not mongo:
+        raise HTTPException(status_code=503, detail="MongoDB not configured")
+    
     job = await mongo.jobs.find_one({"_id": job_id})
     if not job:
         raise HTTPException(status_code=404, detail="job not found")

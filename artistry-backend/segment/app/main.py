@@ -21,9 +21,17 @@ app.add_middleware(
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model_type = "vit_t"  # tiny variant for MobileSAM
-sam_checkpoint = os.path.abspath(r"F:\Projects\Artistry-V2\artistry-backend\segment\app\mobile_sam.pt")
+# Use relative path from current directory
+sam_checkpoint = os.path.join(os.path.dirname(__file__), "mobile_sam.pt")
+if not os.path.exists(sam_checkpoint):
+    sam_checkpoint = "mobile_sam.pt"  # Fallback to current directory
 sam = sam_model_registry[model_type](checkpoint=sam_checkpoint).to(device)
 predictor = SamPredictor(sam)
+
+@app.get("/")
+def root():
+    """Health check endpoint"""
+    return {"status": "ok", "service": "Segment (MobileSAM)", "device": device}
 
 class SegmentReq(BaseModel):
     image_b64: str

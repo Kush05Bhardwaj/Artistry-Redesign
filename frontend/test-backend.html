@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Service Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .service {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .online { border-left: 5px solid #4CAF50; }
+        .offline { border-left: 5px solid #f44336; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover { background: #45a049; }
+        .result { margin-top: 10px; padding: 10px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>Artistry Backend Services Test</h1>
+    <button onclick="checkAllServices()">Check All Services</button>
+    
+    <div id="services"></div>
+    
+    <h2>Test Image Upload</h2>
+    <input type="file" id="imageInput" accept="image/*">
+    <button onclick="testDetect()">Test Detect Service</button>
+    <button onclick="testSegment()">Test Segment Service</button>
+    <button onclick="testAdvise()">Test Advise Service</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const services = [
+            { name: 'Gateway', url: 'http://localhost:8000/' },
+            { name: 'Detect', url: 'http://localhost:8001/' },
+            { name: 'Segment', url: 'http://localhost:8002/' },
+            { name: 'Advise', url: 'http://localhost:8003/' },
+            { name: 'Generate', url: 'http://localhost:8004/' }
+        ];
+
+        async function checkAllServices() {
+            const container = document.getElementById('services');
+            container.innerHTML = '<p>Checking services...</p>';
+            
+            let html = '';
+            for (const service of services) {
+                try {
+                    const response = await fetch(service.url);
+                    const data = await response.json();
+                    html += `
+                        <div class="service online">
+                            <strong>${service.name}</strong> - ✅ ONLINE
+                            <div class="result">${JSON.stringify(data)}</div>
+                        </div>
+                    `;
+                } catch (error) {
+                    html += `
+                        <div class="service offline">
+                            <strong>${service.name}</strong> - ❌ OFFLINE
+                            <div class="result">Error: ${error.message}</div>
+                        </div>
+                    `;
+                }
+            }
+            container.innerHTML = html;
+        }
+
+        async function testDetect() {
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('http://localhost:8001/detect/', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                document.getElementById('results').innerHTML = `
+                    <h3>Detect Results:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        async function testSegment() {
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('num_samples', '10');
+
+            try {
+                const response = await fetch('http://localhost:8002/segment/', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                document.getElementById('results').innerHTML = `
+                    <h3>Segment Results:</h3>
+                    <p>Segments: ${data.num_segments}</p>
+                    ${data.segmented_image ? `<img src="${data.segmented_image}" style="max-width: 100%">` : ''}
+                `;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        async function testAdvise() {
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('prompt', 'Analyze this room and provide design advice');
+
+            try {
+                const response = await fetch('http://localhost:8003/advise/', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                document.getElementById('results').innerHTML = `
+                    <h3>Advise Results:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        // Auto-check services on load
+        window.onload = checkAllServices;
+    </script>
+</body>
+</html>

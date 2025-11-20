@@ -16,28 +16,28 @@ services:
   #   networks:
   #     - artistry-network
 
-  # Gateway Service - API Router (commented out - MongoDB Atlas needs config)
-  # gateway:
-  #   build:
-  #     context: ./gateway
-  #     dockerfile: Dockerfile
-  #   container_name: artistry-gateway
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8000:8000"
-  #   environment:
-  #     - MONGO_URI=${MONGO_URI}
-  #     - DETECT_URL=http://detect:8001/detect
-  #     - SEGMENT_URL=http://segment:8002/segment
-  #     - ADVISE_URL=http://advise:8003/advise
-  #     - GENERATE_URL=http://generate:8004/render
-  #   depends_on:
-  #     - detect
-  #     - segment
-  #     - advise
-  #     - generate
-  #   networks:
-  #     - artistry-network
+  # Gateway Service - API Router
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: artistry-gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - DETECT_URL=http://detect:8001/detect
+      - SEGMENT_URL=http://segment:8002/segment
+      - ADVISE_URL=http://advise:8003/advise
+      - GENERATE_URL=http://generate:8004/render
+    depends_on:
+      - detect
+      - segment
+      - advise
+      - generate
+    networks:
+      - artistry-network
 
   # Detect Service - YOLOv8 Object Detection
   detect:

@@ -1,52 +1,62 @@
-# Artistry V2 - AI-Powered Interior Design Backend# Artistry Backend Prototype
+# Artistry V2 - AI-Powered Interior Design Backend
 
+A microservices-based backend for AI-driven interior design recommendations, featuring object detection, image segmentation, design advice, and AI image generation.
 
+## 🏗️ Architecture
 
-A microservices-based backend for AI-driven interior design recommendations, featuring object detection, image segmentation, design advice, and AI image generation.## Prereqs
-
-- Docker & Docker Compose
-
-## 🏗️ Architecture- (Optional) GPU drivers if you plan to load heavy models
-
-
-
-This backend consists of **5 microservices** that work together to provide comprehensive AI-powered interior design capabilities:## Run locally
-
-1. Copy `.env.example` -> `.env` and adjust any values (e.g., S3 or Mongo URI if using Atlas)
-
-```2. Build & run:
-
-┌─────────────────────────────────────────────────────────────┐
-
-│                  Gateway Service (Port 8000)                 │3. Gateway available: http://localhost:8000
-
-│              API Router & Request Orchestration              │- POST `http://localhost:8000/rooms` with JSON:
-
-└────────────┬────────────┬────────────┬──────────┬───────────┘  ```json
-
-             │            │            │          │  {
-
-    ┌────────▼───┐ ┌─────▼─────┐ ┌───▼────┐ ┌──▼────────┐    "image_b64": "<base64 image>",
-
-    │  Detect    │ │  Segment  │ │ Advise │ │ Generate  │    "prompt": "Make the living room cozier",
-
-    │ (YOLOv8)   │ │(MobileSAM)│ │(LLaVA) │ │(Stable    │    "options": {}
-
-    │ Port 8001  │ │Port 8002  │ │Port    │ │Diffusion) │  }
-
-    │            │ │           │ │8003    │ │Port 8004  │  ```
-
-    └────────────┘ └───────────┘ └────────┘ └───────────┘- GET `http://localhost:8000/rooms/{job_id}` to poll status.
+This backend consists of **5 microservices** that work together to provide comprehensive AI-powered interior design capabilities:
 
 ```
+┌─────────────────────────────────────────────────────────────┐
+│                  Gateway Service (Port 8000)                 │
+│              API Router & Request Orchestration              │
+└────────────┬────────────┬────────────┬──────────┬───────────┘
+             │            │            │          │
+    ┌────────▼───┐ ┌─────▼─────┐ ┌───▼────┐ ┌──▼────────┐
+    │  Detect    │ │  Segment  │ │ Advise │ │ Generate  │
+    │ (YOLOv8)   │ │(MobileSAM)│ │(GPT-2) │ │(Stable    │
+    │ Port 8001  │ │Port 8002  │ │Port    │ │Diffusion) │
+    │            │ │           │ │8003    │ │Port 8004  │
+    └────────────┘ └───────────┘ └────────┘ └───────────┘
+```
 
-## How to integrate real models
+## 📦 Services
 
-## 📦 Services- detect: replace stub with `ultralytics` YOLOv8n inference.
+### 1. **Gateway Service** (Port 8000)
+- **Purpose**: API gateway and request orchestration
+- **Technology**: FastAPI, Motor (MongoDB async)
+- **Endpoints**: 
+  - `GET /` - Health check
+  - `POST /rooms` - Start full workflow
+  - `GET /rooms/{job_id}` - Check job status
 
-- segment: add MobileSAM/EfficientViT-SAM model code and return masks as base64 PNGs.
+### 2. **Detect Service** (Port 8001)
+- **Purpose**: Object detection in room images
+- **Model**: YOLOv8n (Ultralytics)
+- **Endpoints**:
+  - `GET /` - Health check
+  - `POST /detect/` - Detect objects in uploaded image
 
-### 1. **Gateway Service** (Port 8000)- advise: plug in vector search (MongoDB Atlas Vector Search or local FAISS), and a quantized LLaVA / local LLM.
+### 3. **Segment Service** (Port 8002)
+- **Purpose**: Image segmentation for precise object isolation
+- **Model**: MobileSAM (Segment Anything Model)
+- **Endpoints**:
+  - `GET /` - Health check
+  - `POST /segment/` - Segment image regions
+
+### 4. **Advise Service** (Port 8003)
+- **Purpose**: Design advice and recommendations
+- **Model**: GPT-2 (fallback), Sentence Transformers for embeddings
+- **Endpoints**:
+  - `GET /` - Health check
+  - `POST /advise/` - Get design recommendations
+
+### 5. **Generate Service** (Port 8004)
+- **Purpose**: AI-powered room redesign generation
+- **Model**: Stable Diffusion v1.5 + ControlNet (Canny)
+- **Endpoints**:
+  - `GET /` - Health check
+  - `POST /generate/` - Generate new design
 
 - **Purpose**: API gateway and request orchestration- generate: use `diffusers` + ControlNet with `stable-fast` or ONNX/Trton for optimized inference on GPU.
 

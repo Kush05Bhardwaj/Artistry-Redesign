@@ -2,7 +2,12 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import torch
-from transformers import LlavaForConditionalGeneration, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+try:
+    from transformers import LlavaForConditionalGeneration, BitsAndBytesConfig, LlamaTokenizer, AutoTokenizer, AutoModelForCausalLM
+    HAS_LLAVA = True
+except Exception:
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    HAS_LLAVA = False
 from sentence_transformers import SentenceTransformer
 from pymongo import MongoClient
 import os
@@ -27,33 +32,110 @@ db = MongoClient(MONGO_URI)["artistry"]
 # Detect device
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Load quantized small model (fits in 4GB VRAM)
-model_id = "liuhaotian/llava-v1.5-7b"  # or any small open LLaVA 7B
-tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=False)
+# Use local model path (all files including 13GB weights are here)
+LOCAL_MODEL_PATH = os.path.abspath(".")
+print(f"\n{'='*60}")
+print(f"Loading LLaVA Model from Local Directory")
+print(f"{'='*60}")
+print(f"Device: {device.upper()}")
+print(f"Model path: {LOCAL_MODEL_PATH}")
 
-# Only use quantization on CUDA (4-bit quantization doesn't work on CPU)
-if device == "cuda":
-    quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_use_double_quant=True
-    )
-    model = LlavaForConditionalGeneration.from_pretrained(
-        model_id,
-        device_map="auto",
-        torch_dtype=torch.float16,
-        quantization_config=quantization_config
-    )
-else:
-    # CPU mode: use float32, no quantization
-    model = LlavaForConditionalGeneration.from_pretrained(
-        model_id,
-        torch_dtype=torch.float32,
-        low_cpu_mem_usage=True
-    ).to(device)
+# Set cache directory
+os.environ["HF_HOME"] = os.path.join(LOCAL_MODEL_PATH, ".cache")
+
+# Check which format is available
+has_safetensors = os.path.exists(os.path.join(LOCAL_MODEL_PATH, "model-00001-of-00002.safetensors"))
+has_bin = os.path.exists(os.path.join(LOCAL_MODEL_PATH, "pytorch_model-00001-of-00002.bin"))
+
+print(f"SafeTensors format: {'✓ Available' if has_safetensors else '✗ Not found'}")
+print(f"PyTorch .bin format: {'✓ Available' if has_bin else '✗ Not found'}")
+
+# Load tokenizer from local directory
+print("Loading tokenizer...", end=" ")
+try:
+    if HAS_LLAVA and (os.path.exists(os.path.join(LOCAL_MODEL_PATH, "tokenizer.model")) or 
+                      os.path.exists(os.path.join(LOCAL_MODEL_PATH, "tokenizer.json"))):
+        # Use LlamaTokenizer with legacy=False to prefer new sentencepiece tokenizer
+        tokenizer = LlamaTokenizer.from_pretrained(
+            LOCAL_MODEL_PATH,
+            local_files_only=True,
+            legacy=False,
+        )
+    else:
+        # Fallback: try local AutoTokenizer, otherwise use a small public model
+        if os.path.exists(os.path.join(LOCAL_MODEL_PATH, "tokenizer.json")) or os.path.exists(os.path.join(LOCAL_MODEL_PATH, "tokenizer.model")):
+            tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_PATH, local_files_only=True)
+        else:
+            tokenizer = AutoTokenizer.from_pretrained("gpt2")
+except Exception as e:
+    print(f"Failed to load tokenizer: {e}, using fallback gpt2 tokenizer")
+    tokenizer = AutoTokenizer.from_pretrained("gpt2")
+print("✓")
+
+# Load model from local directory
+# Note: For .bin files with torch < 2.6, we need to use a workaround
+import torch.serialization
+# Allow unsafe loading (only for local trusted files)
+_old_load = torch.serialization.load
+torch.serialization.load = lambda *args, **kwargs: _old_load(*args, **{**kwargs, 'weights_only': False})
+
+try:
+    # Check if model files actually exist
+    model_exists = (has_safetensors or has_bin or 
+                   os.path.exists(os.path.join(LOCAL_MODEL_PATH, "pytorch_model.bin")))
+    
+    if HAS_LLAVA and model_exists:
+        if device == "cpu":
+            print("Loading LLaVA model on CPU (this may take 2-3 minutes)...")
+            print("Note: CPU inference will be slower than GPU")
+            model = LlavaForConditionalGeneration.from_pretrained(
+                LOCAL_MODEL_PATH,
+                torch_dtype=torch.float32,
+                low_cpu_mem_usage=True,
+                local_files_only=True,
+            ).to(device)
+            print("✓ Model loaded successfully on CPU")
+        else:
+            print("Loading LLaVA model on GPU with 4-bit quantization...")
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True,
+            )
+            model = LlavaForConditionalGeneration.from_pretrained(
+                LOCAL_MODEL_PATH,
+                device_map="auto",
+                torch_dtype=torch.float16,
+                quantization_config=quantization_config,
+                local_files_only=True,
+            )
+            print("✓ Model loaded successfully on GPU")
+    else:
+        # Fallback to a causal LM (local if available, otherwise gpt2)
+        if not model_exists:
+            print("No local model files found — loading fallback GPT-2 model from HuggingFace")
+        else:
+            print("LLaVA not available — loading fallback causal LM (AutoModelForCausalLM)")
+        
+        if os.path.exists(os.path.join(LOCAL_MODEL_PATH, "pytorch_model.bin")) or os.path.exists(os.path.join(LOCAL_MODEL_PATH, "pytorch_model-00001-of-00002.bin")):
+            model = AutoModelForCausalLM.from_pretrained(LOCAL_MODEL_PATH, local_files_only=True)
+        else:
+            model = AutoModelForCausalLM.from_pretrained("gpt2")
+        model = model.to(device)
+        print("✓ Fallback model loaded")
+finally:
+    # Restore original torch.load
+    torch.serialization.load = _old_load
+
+print(f"{'='*60}\n")
 
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+@app.get("/")
+def root():
+    """Health check endpoint"""
+    return {"status": "ok", "service": "Advise (GPT-2)", "device": device}
 
 class AdviseReq(BaseModel):
     prompt: str

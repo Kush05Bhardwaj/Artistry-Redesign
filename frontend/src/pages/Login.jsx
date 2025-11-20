@@ -29,11 +29,10 @@ export default function Login() {
   }
 
   const handleGoogleLogin = () => {
-    // Simulate getting Google ID - replace with actual Google OAuth implementation
-    const mockGoogleId = "user123@gmail.com";
-    console.log("Google ID:", mockGoogleId);
-    alert(`Google ID: ${mockGoogleId}`);
-    // You can also navigate or perform other actions here
+    // TODO: Implement actual Google OAuth integration
+    console.log("Google Login clicked - OAuth integration needed");
+    alert("Google OAuth integration required. Please implement Google Sign-In.");
+    // After OAuth implementation, navigate to home:
     // navigate("/");
   }
 

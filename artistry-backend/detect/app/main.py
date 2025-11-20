@@ -23,6 +23,11 @@ model = YOLO("yolov8n.pt")  # auto-download
 model.to(device)
 model.fuse()  # fuse conv+bn layers for speed
 
+@app.get("/")
+def root():
+    """Health check endpoint"""
+    return {"status": "ok", "service": "Detect (YOLOv8)", "device": device}
+
 class DetectReq(BaseModel):
     image_b64: str
 

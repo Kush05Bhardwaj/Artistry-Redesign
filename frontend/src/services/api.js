@@ -40,9 +40,9 @@ export const detectObjects = async (imageFile) => {
     
     return {
       objects: data.objects || [],
-      annotatedImage: data.annotated_image || null,
+      annotatedImage: data.annotated_image || null,  // Backend uses snake_case
       confidence: data.confidence || [],
-      boundingBoxes: data.bounding_boxes || []
+      boundingBoxes: data.bounding_boxes || []  // Backend uses snake_case
     }
   } catch (error) {
     console.error('Detect API Error:', error)
@@ -69,9 +69,9 @@ export const segmentImage = async (imageFile, numSamples = 10) => {
     const data = await response.json()
     
     return {
-      segmentedImage: data.segmented_image || null,
+      segmentedImage: data.segmented_image || null,  // Backend uses snake_case
       masks: data.masks || [],
-      numSegments: data.num_segments || 0
+      numSegments: data.num_segments || 0  // Backend uses snake_case
     }
   } catch (error) {
     console.error('Segment API Error:', error)
@@ -148,9 +148,9 @@ export const generateDesign = async (
     const data = await response.json()
     
     return {
-      generatedImage: data.generated_image || data.image || null,
+      generatedImage: data.generated_image || null,  // Backend uses snake_case
       prompt: data.prompt || prompt,
-      cannyImage: data.canny_image || null
+      cannyImage: data.canny_image || null  // Backend uses snake_case
     }
   } catch (error) {
     console.error('Generate API Error:', error)

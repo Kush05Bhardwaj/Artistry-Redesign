@@ -42,6 +42,12 @@ Thumbs.db
 # Virtual environments
 venv/
 artistry-backend/venv/
+artistry-backend/*/venv/
+artistry-backend/gateway/venv/
+artistry-backend/detect/venv/
+artistry-backend/segment/venv/
+artistry-backend/advise/venv/
+artistry-backend/generate/venv/
 .env/
 .env.*.local
 
@@ -54,6 +60,18 @@ __pycache__/
 *.pt
 *.pth
 *.onnx
+*.bin
+*.safetensors
+
+# Model cache directories
+artistry-backend/advise/app/.cache/
+artistry-backend/*/app/.cache/
+.cache/
+
+# Downloaded model weights
+artistry-backend/detect/yolov8*.pt
+artistry-backend/segment/app/*.pt
+artistry-backend/segment/app/MobileSAM/
 
 # SQLite or temporary DB files
 *.sqlite3
@@ -87,3 +105,12 @@ exports/
 uploads/
 artistry-backend/__pycache__/
 artistry-backend/*.log
+
+# Test images
+artistry-backend/*.webp
+artistry-backend/*.jpg
+artistry-backend/*.png
+
+# Environment files
+artistry-backend/.env
+artistry-backend/*/.env

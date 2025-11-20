@@ -135,7 +135,7 @@ const handleFileUpload = (e) => {
 }
 ```
 
-**Replace mock detect function:**
+**Detect function implementation:**
 ```javascript
 const handleDetect = async () => {
   if (!imageFile) {
@@ -198,7 +198,7 @@ const handleFileUpload = (e) => {
 }
 ```
 
-**Replace mock segment function:**
+**Segment function implementation:**
 ```javascript
 const handleSegment = async () => {
   if (!imageFile) {
@@ -250,7 +250,7 @@ const handleFileUpload = (e) => {
 }
 ```
 
-**Replace mock advise function:**
+**Advise function implementation:**
 ```javascript
 const handleGetAdvice = async () => {
   if (!imageFile) {
@@ -303,7 +303,7 @@ const handleFileUpload = (e) => {
 }
 ```
 
-**Replace mock generate function:**
+**Generate function implementation:**
 ```javascript
 const handleGenerate = async () => {
   if (!imageFile) {
@@ -358,7 +358,7 @@ const [results, setResults] = useState(null)
 const [prompt, setPrompt] = useState("Modern minimalist interior design")
 ```
 
-**Replace mock workflow:**
+**Full workflow implementation:**
 ```javascript
 const handleFullWorkflow = async () => {
   if (!imageFile) {
@@ -489,7 +489,7 @@ Integration is complete when:
 1. ✅ All backend services running with CORS
 2. ✅ Frontend dev server running
 3. ✅ Can upload image in each page
-4. ✅ See real AI results (not mock setTimeout)
+4. ✅ See real AI results
 5. ✅ Error handling works
 6. ✅ Full workflow completes successfully
 

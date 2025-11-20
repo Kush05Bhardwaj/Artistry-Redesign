@@ -251,11 +251,6 @@ frontend/src/pages/
 
 ## 📈 Expected Results
 
-### Before Integration (Current Frontend)
-- Upload image → Mock setTimeout → Hardcoded results
-- No actual AI processing
-- Same results every time
-
 ### After Integration
 - Upload image → Real API call → Actual AI results
 - YOLOv8 detects real objects in image
@@ -283,7 +278,7 @@ You'll know integration is complete when:
 ✅ All 5 backend services running with no CORS errors
 ✅ Frontend dev server running on http://localhost:5173
 ✅ Can upload images in each page
-✅ See actual AI-generated results (not mock data)
+✅ See actual AI-generated results
 ✅ Error messages show if something fails
 ✅ Loading states display during processing
 ✅ Can navigate between pages with results

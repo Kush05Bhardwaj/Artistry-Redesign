@@ -28,19 +28,35 @@ controlnet_model = "lllyasviel/sd-controlnet-canny"
 # Determine dtype based on device (CPU needs float32, GPU can use float16)
 dtype = torch.float16 if device == "cuda" else torch.float32
 
-# Load models with appropriate dtype
-controlnet = ControlNetModel.from_pretrained(controlnet_model, torch_dtype=dtype)
-pipe = StableDiffusionControlNetPipeline.from_pretrained(
-    base_model,
-    controlnet=controlnet,
-    torch_dtype=dtype
-).to(device)
+# Initialize as None - will load on startup
+pipe = None
 
-# Optimize pipeline
-pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
-# Only enable xformers on CUDA (and if xformers is installed)
-# pipe.enable_xformers_memory_efficient_attention()  # Disabled - xformers not compatible with PyTorch 2.4.0
-pipe.enable_attention_slicing()  # Still helps reduce memory usage
+@app.on_event("startup")
+async def load_models():
+    """Load models during FastAPI startup to avoid blocking module import"""
+    global pipe
+    try:
+        print("Loading ControlNet model...")
+        controlnet = ControlNetModel.from_pretrained(controlnet_model, torch_dtype=dtype)
+        print("Loading Stable Diffusion pipeline...")
+        pipe = StableDiffusionControlNetPipeline.from_pretrained(
+            base_model,
+            controlnet=controlnet,
+            torch_dtype=dtype
+        ).to(device)
+        
+        # Optimize pipeline
+        pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
+        pipe.enable_attention_slicing()  # Helps reduce memory usage
+        print(f"✓ Generate service ready on {device}")
+    except Exception as e:
+        print(f"⚠ Warning: Failed to load models: {e}")
+        print("Service will run but generation endpoints will fail")
+
+@app.get("/")
+def root():
+    """Health check endpoint"""
+    return {"status": "ok", "service": "Generate (Stable Diffusion)", "device": device, "model_loaded": pipe is not None}
 
 class RenderReq(BaseModel):
     image_b64: str
@@ -63,6 +79,9 @@ def create_canny_map(image: Image.Image) -> Image.Image:
 # ---- Main Endpoint ----
 @app.post("/render")
 def render(req: RenderReq):
+    if pipe is None:
+        return {"error": "Model not loaded. Service is still initializing."}
+    
     image = decode_image(req.image_b64)
     image = image.resize((512, 512))
 
@@ -94,6 +113,9 @@ async def generate_file(
     controlnet_conditioning_scale: float = 0.5
 ):
     """File upload endpoint for frontend integration"""
+    if pipe is None:
+        return {"error": "Model not loaded. Service is still initializing."}
+    
     # Read and process image
     file_bytes = await file.read()
     image = Image.open(io.BytesIO(file_bytes)).convert("RGB")

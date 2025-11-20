@@ -1,0 +1,11 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+diffusers==0.24.0
+torch==2.1.1
+torchvision==0.16.1
+transformers==4.35.2
+accelerate==0.24.1
+pillow==10.1.0
+numpy==1.24.4
+opencv-python-headless==4.8.1.78
+controlnet-aux==0.0.8
