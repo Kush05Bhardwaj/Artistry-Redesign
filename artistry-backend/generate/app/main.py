@@ -55,6 +55,11 @@ async def load_models():
 
 @app.get("/")
 def root():
+    """Root endpoint"""
+    return {"status": "ok", "service": "Generate (Stable Diffusion)", "device": device, "model_loaded": pipe is not None}
+
+@app.get("/health")
+def health():
     """Health check endpoint"""
     return {"status": "ok", "service": "Generate (Stable Diffusion)", "device": device, "model_loaded": pipe is not None}
 

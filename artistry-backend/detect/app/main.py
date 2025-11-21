@@ -25,6 +25,11 @@ model.fuse()  # fuse conv+bn layers for speed
 
 @app.get("/")
 def root():
+    """Root endpoint"""
+    return {"status": "ok", "service": "Detect (YOLOv8)", "device": device}
+
+@app.get("/health")
+def health():
     """Health check endpoint"""
     return {"status": "ok", "service": "Detect (YOLOv8)", "device": device}
 

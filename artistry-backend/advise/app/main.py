@@ -128,6 +128,16 @@ finally:
     # Restore original torch.load
     torch.serialization.load = _old_load
 
+@app.get("/")
+def root():
+    """Root endpoint"""
+    return {"status": "ok", "service": "Advise (LLaVA)", "device": device}
+
+@app.get("/health")
+def health():
+    """Health check endpoint"""
+    return {"status": "ok", "service": "Advise (LLaVA)", "device": device}
+
 print(f"{'='*60}\n")
 
 embedder = SentenceTransformer("all-MiniLM-L6-v2")

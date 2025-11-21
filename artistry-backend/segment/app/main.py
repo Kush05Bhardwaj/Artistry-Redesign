@@ -30,6 +30,11 @@ predictor = SamPredictor(sam)
 
 @app.get("/")
 def root():
+    """Root endpoint"""
+    return {"status": "ok", "service": "Segment (MobileSAM)", "device": device}
+
+@app.get("/health")
+def health():
     """Health check endpoint"""
     return {"status": "ok", "service": "Segment (MobileSAM)", "device": device}
 
@@ -107,9 +112,12 @@ async def segment_file(file: UploadFile = File(...), num_samples: int = 10):
     segmented_pil.save(buffer, format="PNG")
     segmented_b64 = f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}"
     
+    # Convert numpy masks to lists for JSON serialization
+    masks_serializable = [mask.tolist() for mask in masks_list]
+    
     return {
         "segmented_image": segmented_b64,
         "num_segments": len(masks_list),
-        "masks": masks_list
+        "masks": masks_serializable
     }
 

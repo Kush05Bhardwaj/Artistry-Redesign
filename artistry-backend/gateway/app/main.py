@@ -44,6 +44,16 @@ else:
 
 client_timeout = httpx.Timeout(120.0, connect=10.0)
 
+@app.get("/")
+def root():
+    """Root endpoint"""
+    return {"status": "ok", "service": "Gateway"}
+
+@app.get("/health")
+def health():
+    """Health check endpoint"""
+    return {"status": "ok", "service": "Gateway"}
+
 class CreateRoomReq(BaseModel):
     image_b64: str
     prompt: str | None = ""
