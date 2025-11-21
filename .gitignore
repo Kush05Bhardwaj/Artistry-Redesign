@@ -23,12 +23,17 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Local env
+# Local env - CRITICAL: DO NOT COMMIT SENSITIVE DATA
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
+artistry-backend/.env
+artistry-backend/*/.env
+artistry-backend/gateway/.env
 .env
 .env.*
+.env.local
+.env.*.local
 !.env.example
 
 # OS-specific files
@@ -56,22 +61,33 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Model files (optional large files)
+# Model files (large files - DO NOT COMMIT)
 *.pt
 *.pth
 *.onnx
 *.bin
 *.safetensors
+*.pkl
+*.h5
+*.ckpt
 
 # Model cache directories
 artistry-backend/advise/app/.cache/
 artistry-backend/*/app/.cache/
 .cache/
+*/.cache/
+huggingface/
 
-# Downloaded model weights
+# Downloaded model weights - CRITICAL: DO NOT COMMIT THESE
 artistry-backend/detect/yolov8*.pt
+artistry-backend/segment/app/mobile_sam.pt
 artistry-backend/segment/app/*.pt
 artistry-backend/segment/app/MobileSAM/
+artistry-backend/advise/app/*.pt
+artistry-backend/advise/app/*.bin
+artistry-backend/advise/app/model-*
+artistry-backend/advise/app/pytorch_model*
+artistry-backend/generate/app/*.pt
 
 # SQLite or temporary DB files
 *.sqlite3
@@ -96,8 +112,53 @@ artistry-backend/segment/app/MobileSAM/
 *.tmp
 
 # ==========================
+# 🗄️ DATABASE & SECRETS
+# ==========================
+
+# MongoDB data
+mongodb/
+mongo-data/
+data/db/
+
+# API keys and secrets (if stored locally)
+secrets/
+*.key
+*.pem
+*.crt
+credentials.json
+
+# ==========================
+# 📦 LARGE FILES
+# ==========================
+
+# Hugging Face transformers cache
+transformers_cache/
+diffusers_cache/
+**/transformers/
+**/diffusers/
+
+# Dataset files
+datasets/
+*.csv
+*.json.gz
+*.parquet
+
+# ==========================
 # 🧠 CUSTOM
 # ==========================
+
+# Test outputs
+test_outputs/
+outputs/
+results/
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Git backups (unnecessary)
+repo-backup.git/
+*.git.bak
+backup/
 
 # Local test data or exports
 data/

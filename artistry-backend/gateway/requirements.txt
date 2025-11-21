@@ -5,3 +5,4 @@ httpx==0.25.2
 python-dotenv==1.0.0
 pydantic==2.5.0
 pymongo==4.6.0
+python-multipart

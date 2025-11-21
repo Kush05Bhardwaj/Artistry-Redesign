@@ -9,3 +9,4 @@ pillow==10.1.0
 numpy==1.24.4
 opencv-python-headless==4.8.1.78
 controlnet-aux==0.0.8
+python-multipart
