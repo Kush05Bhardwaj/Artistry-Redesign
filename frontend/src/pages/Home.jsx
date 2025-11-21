@@ -44,14 +44,17 @@ export default function Home() {
               <p className="text-gray-700 text-l mb-8">Fast. Affordable. DIY. Your dream home is just a photo away.</p>
               <div className="flex gap-4">
                 <Link
-                  to="/ai-design"
+                  to="/workflow"
                   className="bg-amber-700 text-white px-8 py-3 rounded hover:bg-amber-800 transition-colors font-medium"
+                >
+                  Try Full AI Workflow
+                </Link>
+                <Link
+                  to="/ai-design"
+                  className="border-2 border-amber-700 text-amber-700 px-8 py-3 rounded hover:bg-amber-50 transition-colors font-medium"
                 >
                   Upload Your Room
                 </Link>
-                <button className="border-2 border-amber-700 text-amber-700 px-8 py-3 rounded hover:bg-amber-50 transition-colors font-medium">
-                  Try Demo
-                </button>
               </div>
             </div>
             <div className="relative">

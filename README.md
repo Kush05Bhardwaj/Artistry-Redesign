@@ -32,8 +32,8 @@ Receive professional interior design recommendations powered by LLaVA vision-lan
 ### 🎨 Design Generation
 Generate photorealistic room redesigns with Stable Diffusion, customizable with text prompts.
 
-### 🔄 Full Workflow Orchestration
-Run the complete design pipeline with real-time progress tracking and comprehensive results.
+### 🔄 Full Workflow (NEW!)
+Upload once, process through all AI services automatically. Real-time progress tracking with unified results display.
 
 ## 🏗️ Architecture
 
@@ -66,6 +66,10 @@ Artistry-V2/
 | **Generate** | 8004 | Stable Diffusion + FastAPI | Image generation |
 
 ## 🚀 Quick Start
+
+> **⚡ NEW: Full Workflow Feature**  
+> Upload once, process through all AI services automatically!  
+> See [QUICKSTART_WORKFLOW.md](./QUICKSTART_WORKFLOW.md) for the fastest way to get started.
 
 ### Prerequisites
 
@@ -243,22 +247,28 @@ Access the application at **http://localhost:5173**
 - Guidance Scale: 7.5 (adjustable)
 - Output: 512x512 pixels
 
-### 5. Full AI Design Workflow
+### 5. Full Workflow (NEW! ⚡)
 
-1. Navigate to **AI Design** page
-2. Upload a room photo
-3. Enter a design prompt
-4. Click **Generate Design**
-5. Watch real-time progress:
-   - ✓ Detecting objects (25%)
-   - ✓ Segmenting image (50%)
-   - ✓ Analyzing design (75%)
-   - ✓ Generating redesign (100%)
-6. View comprehensive results:
-   - Detected objects list
-   - Segmented image preview
-   - Design recommendations
-   - Final AI-generated design
+**The fastest way to process your room through all AI services:**
+
+1. Navigate to **Full Workflow** page (`/workflow`)
+2. Upload a room photo **once**
+3. Click **Start Complete Workflow**
+4. Watch automatic processing:
+   - 🔍 Detecting objects (Step 1/4)
+   - ✂️ Segmenting image (Step 2/4)
+   - 💡 Getting design advice (Step 3/4)
+   - 🎨 Generating redesign (Step 4/4)
+5. View all results in unified display:
+   - Annotated image with detected objects
+   - Segmented regions visualization
+   - Professional design recommendations
+   - AI-generated redesign
+
+**Total Time:** ~30-60 seconds  
+**Benefits:** Single upload, automatic processing, unified results
+
+For detailed instructions, see [WORKFLOW_GUIDE.md](./WORKFLOW_GUIDE.md)
 
 ## 🔧 Configuration
 
@@ -646,6 +656,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📚 Additional Resources
 
+### Documentation
+- **[QUICKSTART_WORKFLOW.md](./QUICKSTART_WORKFLOW.md)** - Quick start guide for Full Workflow feature
+- **[WORKFLOW_GUIDE.md](./WORKFLOW_GUIDE.md)** - Comprehensive workflow documentation
+- **[WORKFLOW_COMPLETE.md](./WORKFLOW_COMPLETE.md)** - Implementation completion summary
+- **[VENV_SETUP_GUIDE.md](./VENV_SETUP_GUIDE.md)** - Virtual environment setup guide
+- **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** - Frontend-backend integration
 - [Frontend README](./frontend/README.md)
 - [Backend README](./artistry-backend/README.md)
 - [Integration Guide](./INTEGRATION_GUIDE.md)

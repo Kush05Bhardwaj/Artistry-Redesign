@@ -10,6 +10,7 @@ import Segment from "./pages/Segment"
 import Advise from "./pages/Advise"
 import Generate from "./pages/Generate"
 import Final from "./pages/Final"
+import FullWorkflow from "./pages/FullWorkflow"
 
 function App() {
   return (
@@ -72,6 +73,16 @@ function App() {
               <>
                 <Navbar />
                 <Generate />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/workflow"
+            element={
+              <>
+                <Navbar />
+                <FullWorkflow />
                 <Footer />
               </>
             }

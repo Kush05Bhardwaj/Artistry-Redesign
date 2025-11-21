@@ -9,6 +9,7 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "AI Design", path: "/ai-design" },
+    { name: "Full Workflow", path: "/workflow" },
     { name: "Detect", path: "/detect" },
     { name: "Segment", path: "/segment" },
     { name: "Advise", path: "/advise" },
