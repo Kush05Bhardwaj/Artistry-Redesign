@@ -1,16 +1,17 @@
 # ==========================
-# 🌐 FRONTEND (Next.js)
+# 🌐 FRONTEND (React + Vite)
 # ==========================
 
 # Dependencies
 frontend/node_modules/
 node_modules/
+frontend/package-lock.json
 
-# Build output
-frontend/.next/
-frontend/out/
-.next/
-out/
+# Vite build output
+frontend/dist/
+frontend/.vite/
+dist/
+.vite/
 
 # Logs
 frontend/npm-debug.log*
@@ -24,17 +25,16 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Local env - CRITICAL: DO NOT COMMIT SENSITIVE DATA
-frontend/.env
-frontend/.env.local
-frontend/.env.*.local
-artistry-backend/.env
-artistry-backend/*/.env
-artistry-backend/gateway/.env
 .env
 .env.*
 .env.local
 .env.*.local
+frontend/.env
+frontend/.env.*
+artistry-backend/.env
+artistry-backend/*/.env
 !.env.example
+!frontend/.env.example
 
 # OS-specific files
 .DS_Store
@@ -46,15 +46,13 @@ Thumbs.db
 
 # Virtual environments
 venv/
+env/
+.venv/
 artistry-backend/venv/
 artistry-backend/*/venv/
-artistry-backend/gateway/venv/
-artistry-backend/detect/venv/
-artistry-backend/segment/venv/
-artistry-backend/advise/venv/
-artistry-backend/generate/venv/
-.env/
-.env.*.local
+ENV/
+env.bak/
+venv.bak/
 
 # Python cache
 __pycache__/
@@ -167,11 +165,27 @@ uploads/
 artistry-backend/__pycache__/
 artistry-backend/*.log
 
-# Test images
+# Test images (except sample/demo images in public/)
 artistry-backend/*.webp
 artistry-backend/*.jpg
 artistry-backend/*.png
+!frontend/public/*.jpg
+!frontend/public/*.png
 
-# Environment files
-artistry-backend/.env
-artistry-backend/*/.env
+# Documentation backups
+README_OLD.md
+*_OLD.md
+*_BACKUP.md
+*.md.bak
+
+# Mac specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows specific
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini

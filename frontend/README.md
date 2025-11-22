@@ -432,7 +432,7 @@ Tested on:
 
 ## 📝 License
 
-This project is part of the Artistry-V2 interior design platform.
+This project is part of the Artistry interior design platform.
 
 ---
 
