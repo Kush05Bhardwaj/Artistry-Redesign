@@ -19,3 +19,86 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## Third-Party Components and Attributions
+
+This project integrates and uses several third-party AI models and libraries, each with their own licenses:
+
+### AI Models
+
+1. **YOLOv8 (Ultralytics)**
+   - License: AGPL-3.0
+   - Repository: https://github.com/ultralytics/ultralytics
+   - Used for: Object detection in interior spaces
+   - Copyright: Ultralytics
+
+2. **MobileSAM (Mobile Segment Anything Model)**
+   - License: Apache-2.0
+   - Repository: https://github.com/ChaoningZhang/MobileSAM
+   - Paper: https://arxiv.org/abs/2306.14289
+   - Used for: Image segmentation
+   - Copyright: Chaoning Zhang et al.
+
+3. **Stable Diffusion XL**
+   - License: OpenRAIL++-M License
+   - Repository: https://github.com/Stability-AI/generative-models
+   - Used for: AI image generation
+   - Copyright: Stability AI
+
+### Python Libraries
+
+- **FastAPI**: MIT License
+- **PyTorch**: BSD-3-Clause License
+- **Transformers (Hugging Face)**: Apache-2.0 License
+- **OpenCV**: Apache-2.0 License
+- **Pillow**: HPND License
+- **NumPy**: BSD-3-Clause License
+- **Requests**: Apache-2.0 License
+
+### Frontend Libraries
+
+- **React**: MIT License
+- **Vite**: MIT License
+- **Tailwind CSS**: MIT License
+- **Axios**: MIT License
+
+### Database
+
+- **MongoDB**: Server Side Public License (SSPL)
+
+---
+
+## Important Notes
+
+1. **Commercial Use**: While this project is MIT licensed, please note that:
+   - YOLOv8 uses AGPL-3.0, which requires derivative works to also be open source
+   - Stable Diffusion XL has usage restrictions (see OpenRAIL++-M license)
+   - For commercial use, consider obtaining appropriate licenses from respective owners
+
+2. **Model Weights**: The pre-trained model weights are subject to their respective licenses and terms of use.
+
+3. **Attribution**: When using this software, please acknowledge:
+   - This project (Artistry by Kushagra Bhardwaj)
+   - YOLOv8 by Ultralytics
+   - MobileSAM by Chaoning Zhang et al.
+   - Stable Diffusion XL by Stability AI
+
+4. **Responsibility**: Users are responsible for ensuring compliance with all applicable licenses when deploying or distributing this software.
+
+---
+
+## Full License Texts
+
+For complete license texts of third-party components, please refer to:
+- YOLOv8: https://github.com/ultralytics/ultralytics/blob/main/LICENSE
+- MobileSAM: https://github.com/ChaoningZhang/MobileSAM/blob/master/LICENSE
+- Stable Diffusion XL: https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md
+- PyTorch: https://github.com/pytorch/pytorch/blob/main/LICENSE
+- FastAPI: https://github.com/tiangolo/fastapi/blob/master/LICENSE
+- React: https://github.com/facebook/react/blob/main/LICENSE
+
+---
+
+**Questions about licensing?** Please open an issue or contact the maintainer.
