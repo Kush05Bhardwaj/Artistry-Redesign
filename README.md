@@ -10,7 +10,6 @@ Transform room photos into professional designs using state-of-the-art AI. Uploa
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
-![Artistry Demo](https://via.placeholder.com/800x400.png?text=Artistry+Full+Workflow+Demo)
 
 ## ✨ Features
 
