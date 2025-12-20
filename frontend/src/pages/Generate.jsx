@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Wand2, Loader2 } from "lucide-react"
+import { Wand2, Loader2, Settings, Palette, Zap, Sparkles } from "lucide-react"
 import { Link } from "react-router-dom"
 import { generateDesign } from "../services/api"
 
@@ -7,9 +7,19 @@ export default function Generate() {
   const [uploadedImage, setUploadedImage] = useState(null)
   const [imageFile, setImageFile] = useState(null)
   const [generatedImage, setGeneratedImage] = useState(null)
+  const [cannyImage, setCannyImage] = useState(null)
+  const [passAImage, setPassAImage] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState(null)
-  const [prompt, setPrompt] = useState("Modern minimalist interior design")
+  const [prompt, setPrompt] = useState("Modern minimalist bedroom redesign. Neutral warm palette with beige and soft grey tones. Replace patterned curtains with sheer linen curtains. Upholstered bed with soft fabric headboard. Warm indirect lighting. Matte wall finishes. Photorealistic interior design photography.")
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  
+  // Mode-based generation (replaces strength slider)
+  const [mode, setMode] = useState("balanced")  // "subtle", "balanced", "bold"
+  const [twoPass, setTwoPass] = useState(false)
+  const [guidanceScale, setGuidanceScale] = useState(7.5)
+  const [steps, setSteps] = useState(30)
+  const [controlnetScale, setControlnetScale] = useState(1.0)
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
@@ -39,10 +49,15 @@ export default function Generate() {
     
     try {
       const result = await generateDesign(imageFile, prompt, {
-        numInferenceSteps: 20,
-        guidanceScale: 7.5
+        numInferenceSteps: steps,
+        guidanceScale: guidanceScale,
+        mode: mode,  // Use mode instead of strength
+        twoPass: twoPass,
+        controlnetConditioningScale: controlnetScale
       })
       setGeneratedImage(result.generatedImage)
+      setCannyImage(result.cannyImage)
+      setPassAImage(result.passAImage)
     } catch (err) {
       setError(err.message)
       console.error("Generation error:", err)
@@ -76,16 +91,138 @@ export default function Generate() {
                 )}
                 <div className="mb-3">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Design Prompt
+                    Design Prompt (Designer Language)
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe the design style..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Describe materials and finishes, not abstract ideas..."
+                    rows={5}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Use design terminology: palette, texture, finish, materials
+                  </p>
                 </div>
+                
+                {/* Mode Selection - Replaces Strength Slider */}
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Transformation Intensity
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setMode("subtle")}
+                      className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                        mode === "subtle"
+                          ? "border-purple-600 bg-purple-50 text-purple-700"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
+                    >
+                      <Palette className="w-5 h-5 mx-auto mb-1" />
+                      <div className="text-xs font-medium">Subtle</div>
+                      <div className="text-xs text-gray-500">Minor refresh</div>
+                    </button>
+                    <button
+                      onClick={() => setMode("balanced")}
+                      className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                        mode === "balanced"
+                          ? "border-purple-600 bg-purple-50 text-purple-700"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
+                    >
+                      <Zap className="w-5 h-5 mx-auto mb-1" />
+                      <div className="text-xs font-medium">Balanced</div>
+                      <div className="text-xs text-gray-500">Recommended</div>
+                    </button>
+                    <button
+                      onClick={() => setMode("bold")}
+                      className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                        mode === "bold"
+                          ? "border-purple-600 bg-purple-50 text-purple-700"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
+                    >
+                      <Sparkles className="w-5 h-5 mx-auto mb-1" />
+                      <div className="text-xs font-medium">Bold</div>
+                      <div className="text-xs text-gray-500">Full redesign</div>
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Two-Pass Generation Toggle */}
+                <div className="mb-3 flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div>
+                    <div className="text-sm font-medium text-blue-900">Two-Pass Generation</div>
+                    <div className="text-xs text-blue-700">Better quality, 2x slower</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={twoPass}
+                      onChange={(e) => setTwoPass(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                  </label>
+                </div>
+                
+                {/* Advanced Options Toggle */}
+                <button
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 mb-3"
+                >
+                  <Settings className="w-4 h-4" />
+                  {showAdvanced ? "Hide" : "Show"} Advanced Options
+                </button>
+                
+                {/* Advanced Parameters */}
+                {showAdvanced && (
+                  <div className="mb-3 p-4 bg-gray-50 rounded-lg space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Guidance Scale: {guidanceScale.toFixed(1)} <span className="text-gray-500">(prompt adherence)</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="5"
+                        max="15"
+                        step="0.5"
+                        value={guidanceScale}
+                        onChange={(e) => setGuidanceScale(parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Steps: {steps} <span className="text-gray-500">(quality vs speed)</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="20"
+                        max="50"
+                        step="5"
+                        value={steps}
+                        onChange={(e) => setSteps(parseInt(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        ControlNet Scale: {controlnetScale.toFixed(2)} <span className="text-gray-500">(structure preservation)</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="1.5"
+                        step="0.1"
+                        value={controlnetScale}
+                        onChange={(e) => setControlnetScale(parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
                     onClick={handleGenerate}
@@ -140,8 +277,20 @@ export default function Generate() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Generated Design</h2>
             {generatedImage ? (
-              <div className="relative rounded-lg overflow-hidden border border-gray-200">
-                <img src={generatedImage} alt="Generated design" className="w-full max-h-96 object-cover" />
+              <div className="space-y-4">
+                <div className="relative rounded-lg overflow-hidden border border-gray-200">
+                  <img src={generatedImage} alt="Generated design" className="w-full max-h-96 object-cover" />
+                </div>
+                {cannyImage && (
+                  <details className="text-sm">
+                    <summary className="cursor-pointer text-purple-600 hover:text-purple-700 font-medium">
+                      View ControlNet Edge Map
+                    </summary>
+                    <div className="mt-2 rounded-lg overflow-hidden border border-gray-200">
+                      <img src={cannyImage} alt="Canny edge detection" className="w-full max-h-64 object-cover" />
+                    </div>
+                  </details>
+                )}
               </div>
             ) : isProcessing ? (
               <div className="bg-linear-to-br from-purple-50 to-blue-50 rounded-lg p-12 text-center border border-gray-200">

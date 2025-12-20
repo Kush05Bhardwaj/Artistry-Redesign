@@ -2,8 +2,10 @@
 
 **Complete Technical Reference for Developers**
 
-Version: 2.0  
-Last Updated: November 22, 2025
+Version: 2.1 (Pipeline Update)  
+Last Updated: December 20, 2025
+
+> **⚠️ Important Update:** This documentation reflects the major pipeline redesign implementing img2img with ControlNet for real interior redesigns. See [PIPELINE_UPDATE.md](./PIPELINE_UPDATE.md) for migration details.
 
 ---
 

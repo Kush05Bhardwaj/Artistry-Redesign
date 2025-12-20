@@ -117,19 +117,124 @@ export const getDesignAdvice = async (imageFile, prompt = 'Analyze this room and
 }
 
 /**
+ * Get structured design advice with detection data
+ */
+export const getStructuredAdvice = async (detectionData, styleIntent = 'modern minimalist') => {
+  try {
+    const response = await fetch(`${ADVISE_API}/advise/structured`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        room_type: detectionData.roomType || 'bedroom',
+        objects_detected: detectionData.objects || [],
+        lighting: detectionData.lighting || 'natural',
+        room_size: detectionData.roomSize || 'medium',
+        style_intent: styleIntent,
+        user_prompt: detectionData.userPrompt || null
+      }),
+    })
+
+    await handleApiError(response)
+    const data = await response.json()
+    
+    return {
+      recommendations: data.recommendations || '',
+      structuredPrompt: data.structured_prompt_for_generation || '',
+      inputData: data.input_data || {}
+    }
+  } catch (error) {
+    console.error('Structured Advise API Error:', error)
+    throw new Error(`Structured advice generation failed: ${error.message}`)
+  }
+}
+
+/**
+ * INTERACTIVE WORKFLOW: Step 1 - Get initial AI proposal
+ */
+export const getInitialProposal = async (detectionData) => {
+  try {
+    const response = await fetch(`${ADVISE_API}/proposal/initial`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        detection_data: detectionData
+      }),
+    })
+
+    await handleApiError(response)
+    return await response.json()
+  } catch (error) {
+    console.error('Initial Proposal API Error:', error)
+    throw new Error(`Initial proposal generation failed: ${error.message}`)
+  }
+}
+
+/**
+ * INTERACTIVE WORKFLOW: Step 2 - Refine proposal with user feedback
+ */
+export const refineProposal = async (initialProposal, userPreferences, detectionData) => {
+  try {
+    const response = await fetch(`${ADVISE_API}/proposal/refine`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        initial_proposal: initialProposal,
+        user_preferences: userPreferences,
+        detection_data: detectionData
+      }),
+    })
+
+    await handleApiError(response)
+    return await response.json()
+  } catch (error) {
+    console.error('Refine Proposal API Error:', error)
+    throw new Error(`Proposal refinement failed: ${error.message}`)
+  }
+}
+
+/**
+ * STAGE 4: Convert refined design to structured prompt
+ */
+export const generatePromptFromDesign = async (refinedDesign) => {
+  try {
+    const response = await fetch(`${ADVISE_API}/prompt/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refined_design: refinedDesign }),
+    })
+
+    await handleApiError(response)
+    return await response.json()
+  } catch (error) {
+    console.error('Prompt Generation API Error:', error)
+    throw new Error(`Prompt generation failed: ${error.message}`)
+  }
+}
+
+/**
  * GENERATE SERVICE (Port 8004)
- * Stable Diffusion + ControlNet Image Generation
+ * Stable Diffusion + ControlNet img2img Generation with Two-Pass Support
  */
 export const generateDesign = async (
   imageFile, 
-  prompt = 'Modern minimalist interior design', 
+  prompt = 'Modern minimalist bedroom redesign. Neutral warm palette with beige and soft grey tones.', 
   options = {}
 ) => {
   try {
     const {
-      numInferenceSteps = 20,
+      numInferenceSteps = 30,
       guidanceScale = 7.5,
-      controlnetConditioningScale = 0.5
+      mode = 'balanced',  // 'subtle', 'balanced', 'bold'
+      twoPass = false,  // Enable two-pass generation
+      controlnetConditioningScale = 1.0
     } = options
 
     const formData = new FormData()
@@ -137,6 +242,8 @@ export const generateDesign = async (
     formData.append('prompt', prompt)
     formData.append('num_inference_steps', numInferenceSteps.toString())
     formData.append('guidance_scale', guidanceScale.toString())
+    formData.append('mode', mode)
+    formData.append('two_pass', twoPass.toString())
     formData.append('controlnet_conditioning_scale', controlnetConditioningScale.toString())
 
     const response = await fetch(`${GENERATE_API}/generate/`, {
@@ -148,9 +255,12 @@ export const generateDesign = async (
     const data = await response.json()
     
     return {
-      generatedImage: data.generated_image || null,  // Backend uses snake_case
+      generatedImage: data.generated_image || null,
+      originalImage: data.original_image || null,
       prompt: data.prompt || prompt,
-      cannyImage: data.canny_image || null  // Backend uses snake_case
+      cannyImage: data.canny_image || null,
+      passAImage: data.pass_a_image || null,  // Two-pass intermediate result
+      parameters: data.parameters || {}
     }
   } catch (error) {
     console.error('Generate API Error:', error)

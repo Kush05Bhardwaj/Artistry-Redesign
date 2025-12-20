@@ -18,6 +18,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# INTERIOR-ONLY CLASS FILTER
+# Restrict YOLO detections to furniture/interior elements only
+# Prevents hallucinations (office desks, monitors, cars, etc.)
+INTERIOR_CLASSES = {
+    "bed", "chair", "couch", "dining table", "tv", 
+    "potted plant", "vase", "clock", "book"
+}
+
+# Map YOLO COCO names to interior-friendly names
+CLASS_MAPPING = {
+    "couch": "sofa",
+    "dining table": "table",
+    "potted plant": "plant",
+    "tv": "tv"
+}
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = YOLO("yolov8n.pt")  # auto-download
 model.to(device)
@@ -52,9 +68,18 @@ def detect(req: DetectReq):
     dets = []
     for r in results:
         for box in r.boxes:
+            label = model.names[int(box.cls[0])]
+            
+            # Filter: only interior classes
+            if label not in INTERIOR_CLASSES:
+                continue
+            
+            # Map to friendly name
+            label = CLASS_MAPPING.get(label, label)
+            
             b = box.xyxy[0].tolist()
             dets.append({
-                "label": model.names[int(box.cls[0])],
+                "label": label,
                 "x1": int(b[0]), "y1": int(b[1]), "x2": int(b[2]), "y2": int(b[3]),
                 "score": float(box.conf[0])
             })
@@ -79,8 +104,16 @@ async def detect_file(file: UploadFile = File(...)):
     
     for r in results:
         for box in r.boxes:
-            b = box.xyxy[0].tolist()
             label = model.names[int(box.cls[0])]
+            
+            # Filter: only interior classes
+            if label not in INTERIOR_CLASSES:
+                continue
+            
+            # Map to friendly name
+            label = CLASS_MAPPING.get(label, label)
+            
+            b = box.xyxy[0].tolist()
             score = float(box.conf[0])
             
             objects.append(label)

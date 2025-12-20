@@ -15,8 +15,9 @@ Transform room photos into professional designs using state-of-the-art AI. Uploa
 
 - 🔍 **Object Detection** - Identify furniture and room elements with YOLOv8
 - ✂️ **Image Segmentation** - Isolate design components with MobileSAM  
-- 💡 **AI Design Advice** - Get professional recommendations
-- 🎨 **Design Generation** - Create photorealistic redesigns with Stable Diffusion
+- 💡 **AI Design Advice** - Get grounded, actionable recommendations based on detected elements
+- 🎨 **Design Generation** - Create photorealistic redesigns with Stable Diffusion img2img + ControlNet
+- 🏗️ **Structure Preservation** - Maintains original layout, furniture positions, and camera angle
 - ⚡ **Full Workflow** - Process through all services automatically (30-60s)
 
 ## 🚀 Quick Start
@@ -103,6 +104,23 @@ Access services separately via navigation menu:
 
 ## 🏗️ Architecture
 
+### Pipeline Overview
+
+**Correct High-Level Pipeline:**
+```
+User Image
+    ↓
+Room understanding (objects + layout + size + lighting)
+    ↓
+Style intent (modern, minimal, boho, etc.)
+    ↓
+Image-conditioned generation (img2img with ControlNet)
+    ↓
+Final redesigned image (same room, new style)
+```
+
+### Microservices Architecture
+
 ```
 Frontend (React + Vite)
        ↓
@@ -114,11 +132,18 @@ Detect  Segment  Advise  Generate
 ```
 
 **5 Microservices:**
-- Gateway (orchestration + MongoDB)
-- Detect (YOLOv8)
-- Segment (MobileSAM)
-- Advise (Vision-LLM)
-- Generate (Stable Diffusion)
+- **Gateway** (orchestration + MongoDB)
+- **Detect** (YOLOv8 - room understanding)
+- **Segment** (MobileSAM - mask generation)
+- **Advise** (Vision-LLM - structured recommendations)
+- **Generate** (Stable Diffusion img2img + ControlNet - layout-preserving redesign)
+
+### Key Architectural Principles
+
+1. **img2img, not text2img** - Original image guides generation
+2. **ControlNet integration** - Canny/Depth maps preserve structure
+3. **Structured prompts** - Explicit layout preservation instructions
+4. **Grounded recommendations** - LLM uses detection data (room_type, objects, lighting)
 
 ## 📚 Documentation
 

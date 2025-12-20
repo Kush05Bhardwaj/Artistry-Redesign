@@ -11,6 +11,7 @@ import Advise from "./pages/Advise"
 import Generate from "./pages/Generate"
 import Final from "./pages/Final"
 import FullWorkflow from "./pages/FullWorkflow"
+import InteractiveWorkflow from "./pages/InteractiveWorkflow"
 
 function App() {
   return (
@@ -83,6 +84,16 @@ function App() {
               <>
                 <Navbar />
                 <FullWorkflow />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/interactive"
+            element={
+              <>
+                <Navbar />
+                <InteractiveWorkflow />
                 <Footer />
               </>
             }
