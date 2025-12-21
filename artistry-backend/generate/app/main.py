@@ -12,6 +12,8 @@ from PIL import Image
 import numpy as np
 import cv2  # for real Canny edge detection
 from typing import Optional, List, Dict
+import httpx
+import os
 
 app = FastAPI(title="Stable Diffusion + ControlNet Service")
 
@@ -403,3 +405,238 @@ async def inpaint_file(
         "prompt": prompt,
         "denoise_strength": denoise_strength
     }
+
+
+# ============================================
+# BUDGET-AWARE GENERATION (Phase 2)
+# ============================================
+
+class BudgetAwareGenerationRequest(BaseModel):
+    image_b64: str
+    base_prompt: str
+    material_specs: Dict[str, dict]  # {"bed": {"material": "...", "finish": "..."}}
+    replace_items: List[str]  # ["bed", "curtains"]
+    budget: str  # "low" | "medium" | "high"
+    masks: Optional[Dict[str, str]] = None  # Optional masks for per-item inpainting
+    mode: str = "balanced"  # "subtle" | "balanced" | "bold"
+
+@app.post("/generate/budget-aware")
+async def generate_budget_aware(req: BudgetAwareGenerationRequest):
+    """
+    Budget-Aware Image Generation
+    Generates images with budget-realistic material prompts
+    """
+    if pipe is None or inpaint_pipe is None:
+        return {"error": "Models not loaded"}
+    
+    # Build budget-realistic prompt
+    budget_descriptors = {
+        "low": "budget-friendly, affordable, practical",
+        "medium": "mid-range quality, balanced design, good value",
+        "high": "premium materials, luxury finishes, high-end design"
+    }
+    
+    budget_desc = budget_descriptors.get(req.budget, "balanced design")
+    
+    # Build detailed prompt from material specs
+    material_descriptions = []
+    for item in req.replace_items:
+        if item in req.material_specs:
+            spec = req.material_specs[item]
+            material = spec.get("material", f"standard {item}")
+            finish = spec.get("finish", "standard finish")
+            material_descriptions.append(f"{item} with {material}, {finish}")
+    
+    detailed_prompt = f"""{req.base_prompt}
+{budget_desc} interior design.
+Materials: {', '.join(material_descriptions)}.
+Photorealistic, professional interior photography, high detail."""
+    
+    # Decode original image
+    image = decode_image(req.image_b64)
+    image = image.resize((512, 512))
+    
+    # Determine generation strategy
+    if req.masks and len(req.masks) > 0:
+        # Use per-item inpainting for precise control
+        current_image = image
+        
+        for item in req.replace_items:
+            if item not in req.masks:
+                continue
+            
+            # Build focused prompt for this item
+            if item in req.material_specs:
+                spec = req.material_specs[item]
+                item_prompt = f"{item} with {spec.get('material', 'standard material')}, {spec.get('finish', 'standard finish')}, {budget_desc}, photorealistic"
+            else:
+                item_prompt = f"redesigned {item}, {budget_desc}, photorealistic"
+            
+            # Decode mask
+            mask = decode_image(req.masks[item]).convert("L").resize((512, 512))
+            
+            # Inpaint this item
+            current_image = inpaint_pipe(
+                prompt=item_prompt,
+                image=current_image,
+                mask_image=mask,
+                num_inference_steps=30,
+                guidance_scale=7.5,
+                strength=0.8
+            ).images[0]
+        
+        result = current_image
+    else:
+        # Use global img2img with ControlNet
+        control_image = create_canny_map(image)
+        
+        strength_map = {"subtle": 0.3, "balanced": 0.55, "bold": 0.7}
+        strength = strength_map.get(req.mode, 0.55)
+        
+        result = pipe(
+            prompt=detailed_prompt,
+            image=image,
+            control_image=control_image,
+            strength=strength,
+            guidance_scale=7.5,
+            num_inference_steps=30,
+            controlnet_conditioning_scale=1.0
+        ).images[0]
+    
+    # Convert result to base64
+    buf = io.BytesIO()
+    result.save(buf, format="PNG")
+    result_b64 = base64.b64encode(buf.getvalue()).decode()
+    
+    return {
+        "image_b64": result_b64,
+        "prompt_used": detailed_prompt,
+        "budget": req.budget,
+        "materials_applied": req.material_specs,
+        "items_replaced": req.replace_items
+    }
+
+
+# ============================================
+# POST-GENERATION ANALYSIS (Phase 2)
+# ============================================
+
+class ShoppingMetadata(BaseModel):
+    item_type: str
+    style: str
+    material: str
+    color: str
+    confidence: float
+
+class AnalyzeOutputRequest(BaseModel):
+    generated_image_b64: str
+    replaced_items: List[str]
+
+# URL for advise service (for LLaVA analysis)
+ADVISE_URL = os.getenv("ADVISE_URL", "http://localhost:8003")
+
+@app.post("/generate/analyze-output")
+async def analyze_generated_output(req: AnalyzeOutputRequest):
+    """
+    Post-Generation Analysis
+    Uses LLaVA (via advise service) to extract shopping metadata from generated image
+    """
+    # Call LLaVA through advise service to analyze the generated image
+    analysis_prompt = f"""Analyze this interior design image and extract shopping information for these items: {', '.join(req.replaced_items)}
+
+For each item, identify:
+1. Item type (bed, curtains, chair, etc.)
+2. Design style (modern, minimalist, traditional, etc.)
+3. Primary material (wood, fabric, metal, etc.)
+4. Primary color
+
+Provide structured information in this format:
+- bed: modern upholstered bed, engineered wood frame, beige color
+- curtains: sheer linen curtains, fabric material, off-white color
+
+Analysis:"""
+    
+    # Make request to advise service for analysis
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{ADVISE_URL}/advise",
+                json={
+                    "image_b64": req.generated_image_b64,
+                    "prompt": analysis_prompt,
+                    "masks": []
+                }
+            )
+            
+            if response.status_code == 200:
+                analysis_result = response.json()
+                raw_analysis = analysis_result.get("advice", "")
+            else:
+                raw_analysis = "Analysis failed"
+    except Exception as e:
+        print(f"Error calling advise service: {e}")
+        raw_analysis = "Analysis service unavailable"
+    
+    # Parse the analysis into structured metadata
+    items_metadata = []
+    overall_style = "Modern Minimalist"
+    color_palette = []
+    
+    for item in req.replaced_items:
+        # Simple parsing logic - in production use better NLP
+        item_lower = item.lower()
+        
+        # Extract style
+        style = "modern"
+        if "traditional" in raw_analysis.lower():
+            style = "traditional"
+        elif "contemporary" in raw_analysis.lower():
+            style = "contemporary"
+        elif "minimalist" in raw_analysis.lower():
+            style = "minimalist"
+        
+        # Extract material (heuristic)
+        material = "mixed materials"
+        if item_lower in ["bed", "chair", "wardrobe"]:
+            if "wood" in raw_analysis.lower():
+                material = "engineered wood" if "engineered" in raw_analysis.lower() else "wood"
+            elif "fabric" in raw_analysis.lower() or "upholstered" in raw_analysis.lower():
+                material = "upholstered fabric"
+        elif item_lower == "curtains":
+            if "linen" in raw_analysis.lower():
+                material = "linen"
+            elif "silk" in raw_analysis.lower():
+                material = "silk"
+            else:
+                material = "fabric"
+        
+        # Extract color (heuristic)
+        color = "neutral"
+        if "beige" in raw_analysis.lower():
+            color = "beige"
+        elif "white" in raw_analysis.lower() or "off-white" in raw_analysis.lower():
+            color = "white"
+        elif "grey" in raw_analysis.lower() or "gray" in raw_analysis.lower():
+            color = "grey"
+        elif "brown" in raw_analysis.lower():
+            color = "brown"
+        
+        if color not in color_palette:
+            color_palette.append(color)
+        
+        items_metadata.append(ShoppingMetadata(
+            item_type=item,
+            style=style,
+            material=material,
+            color=color,
+            confidence=0.75
+        ))
+    
+    return {
+        "items": [item.dict() for item in items_metadata],
+        "overall_style": overall_style,
+        "color_palette": color_palette,
+        "raw_analysis": raw_analysis,
+        "analyzed_items": req.replaced_items
+    }
+

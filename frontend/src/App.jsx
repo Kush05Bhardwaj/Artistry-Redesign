@@ -12,6 +12,7 @@ import Generate from "./pages/Generate"
 import Final from "./pages/Final"
 import FullWorkflow from "./pages/FullWorkflow"
 import InteractiveWorkflow from "./pages/InteractiveWorkflow"
+import EnhancedWorkflow from "./pages/EnhancedWorkflow"
 
 function App() {
   return (
@@ -24,6 +25,16 @@ function App() {
               <>
                 <Navbar />
                 <Home />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/enhanced-workflow"
+            element={
+              <>
+                <Navbar />
+                <EnhancedWorkflow />
                 <Footer />
               </>
             }

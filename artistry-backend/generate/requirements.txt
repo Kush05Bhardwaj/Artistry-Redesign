@@ -11,3 +11,5 @@ opencv-python-headless==4.8.1.78
 controlnet-aux==0.0.8
 python-multipart
 safetensors==0.4.1
+huggingface_hub==0.19.4
+httpx==0.25.2

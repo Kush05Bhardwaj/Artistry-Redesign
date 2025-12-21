@@ -592,6 +592,365 @@ class VisionAnalysis(BaseModel):
     lighting: str  # natural, artificial, mixed, dim
     constraints: List[str]  # "keep layout", "keep windows", etc.
 
+# ============================================
+# CONDITION DETECTION (Phase 1)
+# ============================================
+
+class ConditionDetectionRequest(BaseModel):
+    image_b64: str
+    objects_detected: List[str]  # e.g., ["bed", "chair", "curtains"]
+
+class ItemCondition(BaseModel):
+    item: str
+    condition: str  # "old" | "acceptable" | "new"
+    reasoning: str
+    confidence: float
+
+@app.post("/condition/detect")
+async def detect_item_conditions(req: ConditionDetectionRequest):
+    """
+    Analyze condition of detected items using LLaVA
+    Outputs: old/acceptable/new for each item
+    """
+    # Decode image
+    img_bytes = base64.b64decode(req.image_b64)
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+    
+    # Build structured prompt for condition analysis
+    objects_list = ", ".join(req.objects_detected)
+    condition_prompt = f"""Analyze the condition of each furniture item in this image.
+
+Detected items: {objects_list}
+
+For each item, evaluate:
+1. Visible wear and tear
+2. Style modernity (is it outdated?)
+3. Color fading or damage
+4. Overall aesthetic condition
+
+Rate each item as:
+- "old" - Shows significant wear, outdated style, or fading
+- "acceptable" - Usable but could benefit from replacement
+- "new" - Modern, well-maintained, good condition
+
+Provide ratings in this format:
+bed: [condition] - [reason]
+chair: [condition] - [reason]
+curtains: [condition] - [reason]
+
+Analysis:"""
+
+    inputs = tokenizer(condition_prompt, return_tensors="pt", max_length=512, truncation=True).to(model.device)
+    output = model.generate(
+        **inputs,
+        max_new_tokens=250,
+        do_sample=True,
+        temperature=0.6,  # Lower temp for more consistent analysis
+        top_p=0.9
+    )
+    analysis_text = tokenizer.decode(output[0], skip_special_tokens=True)
+    analysis_text = analysis_text.replace(condition_prompt, "").strip()
+    
+    # Parse the output into structured format
+    condition_estimates = {}
+    conditions_list = []
+    
+    for obj in req.objects_detected:
+        # Simple heuristic parsing - in production use better NLP
+        obj_lower = obj.lower()
+        if obj_lower in analysis_text.lower():
+            # Default to acceptable if we can't determine
+            condition = "acceptable"
+            reasoning = "Analysis pending"
+            
+            # Look for condition keywords near the object name
+            if "old" in analysis_text.lower() and obj_lower in analysis_text.lower():
+                condition = "old"
+                reasoning = "Shows signs of wear or outdated style"
+            elif "new" in analysis_text.lower() and obj_lower in analysis_text.lower():
+                condition = "new"
+                reasoning = "Modern and well-maintained"
+            elif "acceptable" in analysis_text.lower() or "usable" in analysis_text.lower():
+                condition = "acceptable"
+                reasoning = "Functional but could be updated"
+            
+            condition_estimates[obj] = condition
+            conditions_list.append(ItemCondition(
+                item=obj,
+                condition=condition,
+                reasoning=reasoning,
+                confidence=0.75
+            ))
+        else:
+            # Object not mentioned, default to acceptable
+            condition_estimates[obj] = "acceptable"
+            conditions_list.append(ItemCondition(
+                item=obj,
+                condition="acceptable",
+                reasoning="Not clearly visible in analysis",
+                confidence=0.5
+            ))
+    
+    return {
+        "condition_estimates": condition_estimates,
+        "detailed_conditions": conditions_list,
+        "raw_analysis": analysis_text,
+        "objects_analyzed": req.objects_detected
+    }
+
+# ============================================
+# BUDGET-AWARE DESIGN REFINER (Phase 1)
+# ============================================
+
+class BudgetRefineRequest(BaseModel):
+    base_design: dict
+    budget: str  # "low" | "medium" | "high"
+    item_selection: List[str]  # Items user wants to replace
+
+class MaterialSpec(BaseModel):
+    item: str
+    material: str
+    finish: str
+    quality_tier: str
+    estimated_cost: str
+
+@app.post("/advise/refine-budget")
+def refine_design_with_budget(req: BudgetRefineRequest):
+    """
+    Budget-Constrained Design Refiner
+    Takes base design + budget and outputs realistic material specifications
+    """
+    base_design = req.base_design
+    budget = req.budget.lower()
+    items = req.item_selection
+    
+    # Budget-aware material mapping
+    material_database = {
+        "low": {
+            "bed": {
+                "material": "engineered wood frame with basic fabric",
+                "finish": "laminate finish",
+                "quality_tier": "budget-friendly",
+                "estimated_cost": "$150-$300"
+            },
+            "curtains": {
+                "material": "polyester blend",
+                "finish": "simple rod pocket",
+                "quality_tier": "budget-friendly",
+                "estimated_cost": "$30-$60"
+            },
+            "chair": {
+                "material": "plastic or basic wood",
+                "finish": "standard paint or laminate",
+                "quality_tier": "budget-friendly",
+                "estimated_cost": "$50-$100"
+            },
+            "wardrobe": {
+                "material": "particle board with laminate",
+                "finish": "glossy laminate",
+                "quality_tier": "budget-friendly",
+                "estimated_cost": "$200-$400"
+            },
+            "walls": {
+                "material": "basic emulsion paint",
+                "finish": "matte or eggshell",
+                "quality_tier": "budget-friendly",
+                "estimated_cost": "$100-$200 (room)"
+            }
+        },
+        "medium": {
+            "bed": {
+                "material": "engineered wood with quality upholstered headboard",
+                "finish": "fabric upholstery with wooden accents",
+                "quality_tier": "mid-range",
+                "estimated_cost": "$400-$800"
+            },
+            "curtains": {
+                "material": "poly-linen blend or cotton",
+                "finish": "grommet or rod pocket with quality hardware",
+                "quality_tier": "mid-range",
+                "estimated_cost": "$80-$150"
+            },
+            "chair": {
+                "material": "solid wood or quality engineered wood",
+                "finish": "fabric or faux leather upholstery",
+                "quality_tier": "mid-range",
+                "estimated_cost": "$150-$300"
+            },
+            "wardrobe": {
+                "material": "engineered wood with quality laminate",
+                "finish": "matte or textured finish",
+                "quality_tier": "mid-range",
+                "estimated_cost": "$500-$1000"
+            },
+            "walls": {
+                "material": "premium emulsion or washable paint",
+                "finish": "matte with accent wall option",
+                "quality_tier": "mid-range",
+                "estimated_cost": "$200-$400 (room)"
+            }
+        },
+        "high": {
+            "bed": {
+                "material": "solid wood or premium upholstered design",
+                "finish": "premium fabric or genuine leather, tufted details",
+                "quality_tier": "premium",
+                "estimated_cost": "$1000-$2500"
+            },
+            "curtains": {
+                "material": "natural linen or silk blend",
+                "finish": "custom hardware, layered design",
+                "quality_tier": "premium",
+                "estimated_cost": "$200-$500"
+            },
+            "chair": {
+                "material": "solid hardwood",
+                "finish": "genuine leather or designer fabric",
+                "quality_tier": "premium",
+                "estimated_cost": "$400-$800"
+            },
+            "wardrobe": {
+                "material": "solid wood with premium finish",
+                "finish": "natural wood stain or lacquer",
+                "quality_tier": "premium",
+                "estimated_cost": "$1500-$3000"
+            },
+            "walls": {
+                "material": "designer paint or wallpaper",
+                "finish": "textured, metallic, or specialty finish",
+                "quality_tier": "premium",
+                "estimated_cost": "$500-$1000 (room)"
+            }
+        }
+    }
+    
+    # Build material specifications for selected items
+    materials = {}
+    material_specs = []
+    
+    budget_tier = material_database.get(budget, material_database["medium"])
+    
+    for item in items:
+        item_lower = item.lower()
+        # Find closest match in database
+        if item_lower in budget_tier:
+            spec = budget_tier[item_lower]
+            materials[item] = spec["material"]
+            material_specs.append(MaterialSpec(
+                item=item,
+                material=spec["material"],
+                finish=spec["finish"],
+                quality_tier=spec["quality_tier"],
+                estimated_cost=spec["estimated_cost"]
+            ))
+        else:
+            # Default fallback
+            materials[item] = f"standard {item.lower()} suitable for {budget} budget"
+            material_specs.append(MaterialSpec(
+                item=item,
+                material=f"standard {item.lower()}",
+                finish="standard finish",
+                quality_tier=budget,
+                estimated_cost="Estimate not available"
+            ))
+    
+    return {
+        "budget_tier": budget,
+        "materials": materials,
+        "detailed_specs": material_specs,
+        "base_design": base_design,
+        "items_refined": items,
+        "cost_estimate": budget,
+        "realism_score": 0.85
+    }
+
+# ============================================
+# ITEM UPGRADE REASONER (Phase 1)
+# ============================================
+
+class UpgradeReasonRequest(BaseModel):
+    item_conditions: dict  # {"bed": "old", "curtains": "outdated"}
+    user_selection: List[str]  # ["bed", "curtains"]
+    budget: str
+
+class UpgradeDecision(BaseModel):
+    item: str
+    decision: str  # "replace" | "keep"
+    reasoning: str
+    priority: int  # 1-5, 5 being highest priority
+
+@app.post("/advise/reason-upgrades")
+def reason_item_upgrades(req: UpgradeReasonRequest):
+    """
+    Item Upgrade Reasoner
+    Combines condition analysis + user selection + budget to make final decisions
+    """
+    conditions = req.item_conditions
+    user_selected = req.user_selection
+    budget = req.budget.lower()
+    
+    replace_items = []
+    keep_items = []
+    decisions = []
+    reasoning_map = {}
+    
+    # Process each item
+    all_items = set(list(conditions.keys()) + user_selected)
+    
+    for item in all_items:
+        condition = conditions.get(item, "acceptable")
+        user_wants_replace = item in user_selected
+        
+        # Decision logic
+        if user_wants_replace and condition == "old":
+            decision = "replace"
+            priority = 5
+            reason = f"Item is in poor condition and user requested replacement. High priority for {budget} budget."
+            replace_items.append(item)
+        elif user_wants_replace and condition == "acceptable":
+            decision = "replace"
+            priority = 3
+            reason = f"User requested replacement. Item is functional but update will improve overall design."
+            replace_items.append(item)
+        elif user_wants_replace and condition == "new":
+            decision = "replace"
+            priority = 2
+            reason = f"User requested replacement despite good condition. Consider style preference change."
+            replace_items.append(item)
+        elif not user_wants_replace and condition == "old":
+            decision = "keep"
+            priority = 4
+            reason = f"Item shows wear but user chose to keep. Consider suggesting in final recommendations."
+            keep_items.append(item)
+        elif not user_wants_replace:
+            decision = "keep"
+            priority = 1
+            reason = f"Item in {condition} condition and user chose to keep."
+            keep_items.append(item)
+        else:
+            decision = "keep"
+            priority = 1
+            reason = f"Default keep decision for {item}."
+            keep_items.append(item)
+        
+        reasoning_map[item] = reason
+        decisions.append(UpgradeDecision(
+            item=item,
+            decision=decision,
+            reasoning=reason,
+            priority=priority
+        ))
+    
+    return {
+        "replace": replace_items,
+        "keep": keep_items,
+        "reasoning": reasoning_map,
+        "detailed_decisions": decisions,
+        "budget": budget,
+        "user_selection": user_selected,
+        "condition_input": conditions
+    }
+
 @app.post("/vision/analyze", response_model=VisionAnalysis)
 async def analyze_vision(file: UploadFile = File(None), detection_data: Optional[str] = None):
     """
