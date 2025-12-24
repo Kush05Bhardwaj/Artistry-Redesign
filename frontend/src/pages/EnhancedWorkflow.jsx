@@ -56,10 +56,14 @@ export default function EnhancedWorkflow() {
   // Quick detect for item selection
   const detectObjectsForPreferences = async (base64) => {
     try {
-      const response = await fetch(`${API_BASE}/detect/`, {
+      // Create FormData for file upload to detect service (port 8001)
+      const blob = await fetch(`data:image/jpeg;base64,${base64}`).then(r => r.blob())
+      const formData = new FormData()
+      formData.append('file', blob, 'image.jpg')
+      
+      const response = await fetch('http://localhost:8001/detect/', {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_b64: base64 })
+        body: formData
       })
       
       const data = await response.json()

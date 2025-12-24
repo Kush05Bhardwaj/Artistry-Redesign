@@ -289,21 +289,17 @@ export default function FullWorkflow() {
           </div>
         )}
 
-        {/* Individual Services Links */}
+        {/* Quick Links */}
         <div className="mt-12 bg-gray-50 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Or try individual services:</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Link to="/detect" className="p-4 bg-white rounded-lg border border-gray-200 hover:border-amber-500 transition-colors text-center">
-              <span className="font-medium text-gray-900">Detect</span>
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Try other workflows:</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Link to="/ai-design" className="p-4 bg-white rounded-lg border border-gray-200 hover:border-amber-500 transition-colors">
+              <span className="font-medium text-gray-900">AI Design</span>
+              <p className="text-sm text-gray-600 mt-1">Quick design with full workflow</p>
             </Link>
-            <Link to="/segment" className="p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-500 transition-colors text-center">
-              <span className="font-medium text-gray-900">Segment</span>
-            </Link>
-            <Link to="/advise" className="p-4 bg-white rounded-lg border border-gray-200 hover:border-purple-500 transition-colors text-center">
-              <span className="font-medium text-gray-900">Advise</span>
-            </Link>
-            <Link to="/generate" className="p-4 bg-white rounded-lg border border-gray-200 hover:border-pink-500 transition-colors text-center">
-              <span className="font-medium text-gray-900">Generate</span>
+            <Link to="/enhanced-workflow" className="p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-500 transition-colors">
+              <span className="font-medium text-gray-900">Smart Workflow</span>
+              <p className="text-sm text-gray-600 mt-1">Budget-aware design with preferences</p>
             </Link>
           </div>
         </div>

@@ -19,11 +19,31 @@ app.add_middleware(
 )
 
 # INTERIOR-ONLY CLASS FILTER
-# Restrict YOLO detections to furniture/interior elements only
-# Prevents hallucinations (office desks, monitors, cars, etc.)
+# Expanded to detect ALL interior-related objects including structural elements
 INTERIOR_CLASSES = {
-    "bed", "chair", "couch", "dining table", "tv", 
-    "potted plant", "vase", "clock", "book"
+    # Furniture
+    "bed", "chair", "couch", "sofa", "dining table", "bench", "desk", "dresser",
+    # Electronics
+    "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "monitor",
+    # Appliances
+    "microwave", "oven", "toaster", "sink", "refrigerator", "dishwasher",
+    # Decor & Items
+    "potted plant", "vase", "clock", "book", "bottle", "cup", 
+    "wine glass", "bowl", "knife", "spoon", "fork", "picture", "frame",
+    # Storage & Organization
+    "backpack", "handbag", "suitcase", "umbrella", "cabinet", "shelf",
+    # Lighting
+    "lamp", "light", "chandelier",
+    # Textiles & Bedding
+    "tie", "teddy bear", "hair drier", "toothbrush", "pillow", "blanket", "towel",
+    # Structural (if detected)
+    "door", "window", "curtain", "blinds", "wall", "floor", "ceiling",
+    # Sports/Leisure (sometimes in rooms)
+    "frisbee", "skis", "snowboard", "sports ball", "kite", 
+    "baseball bat", "baseball glove", "skateboard", "surfboard", 
+    "tennis racket",
+    # Additional common items
+    "scissors", "pen", "pencil", "person"
 }
 
 # Map YOLO COCO names to interior-friendly names
@@ -31,7 +51,9 @@ CLASS_MAPPING = {
     "couch": "sofa",
     "dining table": "table",
     "potted plant": "plant",
-    "tv": "tv"
+    "tv": "television",
+    "cell phone": "phone",
+    "remote": "remote control"
 }
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -64,7 +86,8 @@ def decode_image_file(file_bytes):
 @app.post("/detect")
 def detect(req: DetectReq):
     img = decode_image(req.image_b64)
-    results = model.predict(img, imgsz=640, device=device, half=True, verbose=False)
+    # Lower confidence threshold to detect more objects
+    results = model.predict(img, imgsz=640, device=device, half=True, verbose=False, conf=0.1, iou=0.3)
     dets = []
     for r in results:
         for box in r.boxes:
@@ -91,8 +114,8 @@ async def detect_file(file: UploadFile = File(...)):
     file_bytes = await file.read()
     img = decode_image_file(file_bytes)
     
-    # Run detection
-    results = model.predict(img, imgsz=640, device=device, verbose=False)
+    # Run detection with lower confidence threshold to detect more objects
+    results = model.predict(img, imgsz=640, device=device, verbose=False, conf=0.1, iou=0.3)
     
     # Extract object names and bounding boxes
     objects = []

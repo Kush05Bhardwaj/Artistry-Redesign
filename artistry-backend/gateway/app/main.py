@@ -274,6 +274,51 @@ async def enhanced_workflow(req: EnhancedWorkflowRequest):
         print(f"Error in enhanced workflow: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================
+# DESIGN SAVE ENDPOINT
+# ============================================
+
+class SaveDesignRequest(BaseModel):
+    originalImage: str | None = None
+    detectedObjects: list[str] | None = None
+    segmentedImage: str | None = None
+    advice: list[str] | None = None
+    generatedImage: str | None = None
+    prompt: str | None = None
+    timestamp: str | None = None
+
+@app.post("/api/designs")
+async def save_design(design: SaveDesignRequest):
+    """Save design results to MongoDB (optional)"""
+    if not mongo:
+        # If MongoDB not configured, just return success without saving
+        return {
+            "status": "ok",
+            "message": "Design received (MongoDB not configured, not persisted)",
+            "id": str(uuid.uuid4())
+        }
+    
+    try:
+        design_id = str(uuid.uuid4())
+        await mongo.designs.insert_one({
+            "_id": design_id,
+            "original_image": design.originalImage,
+            "detected_objects": design.detectedObjects,
+            "segmented_image": design.segmentedImage,
+            "advice": design.advice,
+            "generated_image": design.generatedImage,
+            "prompt": design.prompt,
+            "timestamp": design.timestamp,
+            "created_at": asyncio.get_event_loop().time()
+        })
+        return {
+            "status": "ok",
+            "message": "Design saved successfully",
+            "id": design_id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save design: {str(e)}")
+
 @app.get("/")
 async def root():
     """Health check endpoint"""

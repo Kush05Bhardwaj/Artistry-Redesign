@@ -326,16 +326,22 @@ export const runFullWorkflow = async (
     if (onProgress) onProgress('Generating new design...', 80)
     results.generation = await generateDesign(imageFile, prompt)
 
-    // Step 5: Save to Database
+    // Step 5: Save to Database (optional)
     if (onProgress) onProgress('Saving results...', 95)
-    await saveDesign({
-      originalImage: null, // Base64 can be large, handle separately
-      detectedObjects: results.detection.objects,
-      segmentedImage: results.segmentation.segmentedImage,
-      advice: results.advice.advice,
-      generatedImage: results.generation.generatedImage,
-      prompt: prompt
-    })
+    try {
+      await saveDesign({
+        originalImage: null, // Base64 can be large, handle separately
+        detectedObjects: results.detection.objects,
+        segmentedImage: results.segmentation.segmentedImage,
+        advice: results.advice.advice,
+        generatedImage: results.generation.generatedImage,
+        prompt: prompt,
+        timestamp: new Date().toISOString()
+      })
+    } catch (error) {
+      console.warn('Failed to save design (MongoDB may not be configured):', error.message)
+      // Continue anyway - saving is optional
+    }
 
     if (onProgress) onProgress('Complete!', 100)
     return results
