@@ -19,6 +19,10 @@ Transform room photos into professional designs using state-of-the-art AI. Uploa
 - 🎨 **Design Generation** - Create photorealistic redesigns with Stable Diffusion img2img + ControlNet
 - 🏗️ **Structure Preservation** - Maintains original layout, furniture positions, and camera angle
 - ⚡ **Full Workflow** - Process through all services automatically (30-60s)
+- 💰 **Cost Estimation** - India-specific pricing with DIY vs Professional comparison (NEW!)
+- 🔨 **DIY Guidance** - Step-by-step instructions for self-implementation (NEW!)
+- 💾 **Save & Share** - User authentication, design history, and social sharing (NEW!)
+- 🛒 **Shopping Integration** - Smart product matching with local brands (Amazon, Flipkart, Urban Ladder)
 
 ## 🚀 Quick Start
 

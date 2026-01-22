@@ -15,6 +15,13 @@ import os
 import base64
 import io
 from PIL import Image
+import hashlib
+import secrets
+from datetime import datetime, timedelta
+
+# Import MVP features
+from app.pricing_data import get_item_price, calculate_diy_savings, TIMELINE_ESTIMATES
+from app.diy_instructions import get_diy_instructions
 
 app = FastAPI(title="LLaVA Advice Service")
 
@@ -1011,3 +1018,223 @@ async def analyze_vision(file: UploadFile = File(None), detection_data: Optional
         lighting=lighting,
         constraints=constraints
     )
+
+
+# ============================================
+# COST ESTIMATION (MVP - High Priority)
+# ============================================
+
+class CostEstimationRequest(BaseModel):
+    detected_objects: List[str]  # ["bed", "curtains", "chair"]
+    budget: str  # "low" | "medium" | "high"
+    room_size_sqft: Optional[int] = 150
+
+class ItemCost(BaseModel):
+    item: str
+    budget_tier: str
+    material_cost_inr: int
+    labor_cost_inr: int
+    total_cost_inr: int
+    description: str
+    where_to_buy: List[str]
+    diy_savings_inr: int
+    diy_savings_percentage: float
+
+class CostBreakdown(BaseModel):
+    materials_total_inr: int
+    labor_total_inr: int
+    grand_total_inr: int
+    timeline_days: float
+
+@app.post("/estimate/total-cost")
+async def calculate_total_cost(req: CostEstimationRequest):
+    """
+    Calculate total project cost based on detected items and budget tier
+    Returns detailed breakdown with DIY vs Professional comparison
+    """
+    budget = req.budget.lower()
+    detected_objects = req.detected_objects
+    
+    per_item_costs = []
+    total_materials = 0
+    total_labor = 0
+    total_diy_timeline = 0
+    total_professional_timeline = 0
+    
+    for item in detected_objects:
+        # Get pricing from database
+        pricing = get_item_price(item, budget)
+        
+        material_cost = pricing.get("material_cost", 0)
+        labor_cost = pricing.get("labor_cost", 0)
+        total_cost = pricing.get("total", 0)
+        
+        # Calculate DIY savings
+        diy_savings_data = calculate_diy_savings(item, budget)
+        
+        # Add to totals
+        total_materials += material_cost
+        total_labor += labor_cost
+        
+        # Timeline estimates
+        timeline = TIMELINE_ESTIMATES.get(item.lower(), {"diy": 1, "professional": 1})
+        total_diy_timeline += timeline.get("diy", 1)
+        total_professional_timeline += timeline.get("professional", 1)
+        
+        # Build item cost object
+        per_item_costs.append(ItemCost(
+            item=item,
+            budget_tier=budget,
+            material_cost_inr=material_cost,
+            labor_cost_inr=labor_cost,
+            total_cost_inr=total_cost,
+            description=pricing.get("description", ""),
+            where_to_buy=pricing.get("where_to_buy", ["Amazon", "Flipkart"]),
+            diy_savings_inr=diy_savings_data["savings"],
+            diy_savings_percentage=diy_savings_data["savings_percentage"]
+        ))
+    
+    # Grand total
+    grand_total = total_materials + total_labor
+    
+    return {
+        "budget_tier": budget,
+        "total_cost_inr": grand_total,
+        "breakdown": CostBreakdown(
+            materials_total_inr=total_materials,
+            labor_total_inr=total_labor,
+            grand_total_inr=grand_total,
+            timeline_days=round(total_professional_timeline, 1)
+        ),
+        "per_item_costs": per_item_costs,
+        "diy_vs_professional": {
+            "diy_total_inr": total_materials,
+            "professional_total_inr": grand_total,
+            "savings_diy_inr": total_labor,
+            "savings_percentage": round((total_labor / grand_total) * 100, 1) if grand_total > 0 else 0,
+            "diy_timeline_days": round(total_diy_timeline, 1),
+            "professional_timeline_days": round(total_professional_timeline, 1)
+        },
+        "room_size_sqft": req.room_size_sqft,
+        "items_count": len(detected_objects),
+        "currency": "INR"
+    }
+
+
+# ============================================
+# DIY GUIDANCE (MVP - Medium Priority)
+# ============================================
+
+class DIYGuideRequest(BaseModel):
+    item: str  # "curtains", "walls", "bed", etc.
+    budget: str  # "low" | "medium" | "high"
+    skill_level: Optional[str] = "beginner"  # beginner | intermediate | advanced
+
+class DIYStep(BaseModel):
+    step: int
+    title: str
+    description: str
+    duration_minutes: int
+    tips: List[str]
+    video_url: Optional[str] = None
+    safety_warning: Optional[str] = None
+
+class DIYTool(BaseModel):
+    name: str
+    cost_inr: int
+    where: str
+    optional: bool = False
+
+class DIYMaterial(BaseModel):
+    item: str
+    budget_range: str
+    where: str
+
+@app.post("/diy/instructions")
+async def generate_diy_guide(req: DIYGuideRequest):
+    """
+    Generate step-by-step DIY instructions for detected items
+    India-specific with local tool/material availability
+    """
+    item = req.item.lower()
+    budget = req.budget.lower()
+    
+    # Get DIY instructions from database
+    diy_guide = get_diy_instructions(item)
+    
+    # Get cost information
+    pricing = get_item_price(item, budget)
+    
+    # Build response
+    response = {
+        "item": item,
+        "difficulty": diy_guide.get("difficulty", "intermediate"),
+        "estimated_time_hours": diy_guide.get("estimated_time_hours", 2),
+        "skill_level": diy_guide.get("skill_level", "Moderate"),
+        "total_cost_diy_inr": pricing.get("material_cost", 0),
+        "total_cost_professional_inr": pricing.get("total", 0),
+        "savings_inr": pricing.get("labor_cost", 0)
+    }
+    
+    # Add detailed steps if available
+    if "steps" in diy_guide:
+        response["steps"] = [
+            DIYStep(
+                step=step["step"],
+                title=step["title"],
+                description=step["description"],
+                duration_minutes=step.get("duration_minutes", 30),
+                tips=step.get("tips", []),
+                video_url=step.get("video_url"),
+                safety_warning=step.get("safety_warning")
+            )
+            for step in diy_guide["steps"]
+        ]
+    
+    # Add tools needed
+    if "tools_needed" in diy_guide:
+        response["tools_needed"] = [
+            DIYTool(
+                name=tool["name"],
+                cost_inr=tool.get("cost_inr", 0),
+                where=tool.get("where", "Hardware Store"),
+                optional=tool.get("optional", False)
+            )
+            for tool in diy_guide["tools_needed"]
+        ]
+    
+    # Add materials checklist
+    if "materials_checklist" in diy_guide:
+        response["materials_checklist"] = [
+            DIYMaterial(
+                item=mat["item"],
+                budget_range=mat["budget_range"],
+                where=mat["where"]
+            )
+            for mat in diy_guide["materials_checklist"]
+        ]
+    
+    # Add safety tips
+    if "safety_tips" in diy_guide:
+        response["safety_tips"] = diy_guide["safety_tips"]
+    
+    # Add common mistakes
+    if "common_mistakes" in diy_guide:
+        response["common_mistakes"] = diy_guide["common_mistakes"]
+    
+    # Add pro tips
+    if "pro_tips" in diy_guide:
+        response["pro_tips"] = diy_guide["pro_tips"]
+    
+    # Add quick instructions for simple items
+    if "instructions" in diy_guide:
+        response["quick_instructions"] = diy_guide["instructions"]
+    
+    # Professional alternative
+    response["professional_option"] = {
+        "cost_inr": pricing.get("total", 0),
+        "recommended_for": diy_guide.get("difficulty") in ["advanced", "expert"],
+        "note": "Hire professional if you're not confident in your skills"
+    }
+    
+    return response

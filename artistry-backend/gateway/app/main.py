@@ -2,6 +2,10 @@ import os
 import uuid
 import base64
 import asyncio
+import hashlib
+import secrets
+from datetime import datetime, timedelta
+from typing import Optional
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -439,4 +443,339 @@ async def proxy_affiliate_links(request_data: dict):
             return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Commerce service error: {str(e)}")
+
+
+# ============================================
+# USER AUTHENTICATION (MVP - High Priority)
+# ============================================
+
+class UserSignup(BaseModel):
+    email: str
+    password: str
+    name: str
+
+class LoginCredentials(BaseModel):
+    email: str
+    password: str
+
+class AuthToken(BaseModel):
+    access_token: str
+    token_type: str
+    user_id: str
+    email: str
+    name: str
+
+def hash_password(password: str) -> str:
+    """Hash password using SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def generate_token() -> str:
+    """Generate secure random token"""
+    return secrets.token_urlsafe(32)
+
+@app.post("/auth/signup")
+async def signup(user: UserSignup):
+    """
+    User Registration
+    Creates new user account with email and password
+    """
+    if not mongo:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
+    # Check if email already exists
+    existing_user = await mongo.users.find_one({"email": user.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Hash password
+    password_hash = hash_password(user.password)
+    
+    # Create user document
+    user_id = str(uuid.uuid4())
+    user_doc = {
+        "_id": user_id,
+        "email": user.email,
+        "name": user.name,
+        "password_hash": password_hash,
+        "created_at": datetime.utcnow(),
+        "designs_count": 0
+    }
+    
+    await mongo.users.insert_one(user_doc)
+    
+    # Generate access token
+    access_token = generate_token()
+    
+    # Store token in database
+    await mongo.tokens.insert_one({
+        "token": access_token,
+        "user_id": user_id,
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow() + timedelta(days=30)
+    })
+    
+    return AuthToken(
+        access_token=access_token,
+        token_type="bearer",
+        user_id=user_id,
+        email=user.email,
+        name=user.name
+    )
+
+@app.post("/auth/login")
+async def login(credentials: LoginCredentials):
+    """
+    User Login
+    Authenticate user and return access token
+    """
+    if not mongo:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
+    # Find user by email
+    user = await mongo.users.find_one({"email": credentials.email})
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Verify password
+    password_hash = hash_password(credentials.password)
+    if password_hash != user["password_hash"]:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Generate new access token
+    access_token = generate_token()
+    
+    # Store token in database
+    await mongo.tokens.insert_one({
+        "token": access_token,
+        "user_id": user["_id"],
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow() + timedelta(days=30)
+    })
+    
+    return AuthToken(
+        access_token=access_token,
+        token_type="bearer",
+        user_id=user["_id"],
+        email=user["email"],
+        name=user["name"]
+    )
+
+@app.get("/auth/verify")
+async def verify_token(token: str):
+    """
+    Verify if access token is valid
+    """
+    if not mongo:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
+    # Find token in database
+    token_doc = await mongo.tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # Check if token is expired
+    if token_doc["expires_at"] < datetime.utcnow():
+        raise HTTPException(status_code=401, detail="Token expired")
+    
+    # Get user info
+    user = await mongo.users.find_one({"_id": token_doc["user_id"]})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    return {
+        "valid": True,
+        "user_id": user["_id"],
+        "email": user["email"],
+        "name": user["name"]
+    }
+
+
+# ============================================
+# SAVE & SHARE DESIGNS (MVP - High Priority)
+# ============================================
+
+class SaveDesignRequest(BaseModel):
+    user_id: str
+    original_image_b64: str
+    generated_image_b64: str
+    detected_objects: list
+    budget: str
+    design_tips: str
+    total_cost_inr: int
+    metadata: dict = {}
+
+class ShareDesignRequest(BaseModel):
+    design_id: str
+    platform: str  # "whatsapp" | "facebook" | "link"
+
+@app.post("/designs/save")
+async def save_design(design: SaveDesignRequest):
+    """
+    Save design to user's history
+    Stores original image, generated image, and metadata
+    """
+    if not mongo:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
+    # Verify user exists
+    user = await mongo.users.find_one({"_id": design.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Create design document
+    design_id = str(uuid.uuid4())
+    design_doc = {
+        "_id": design_id,
+        "user_id": design.user_id,
+        "original_image_b64": design.original_image_b64,
+        "generated_image_b64": design.generated_image_b64,
+        "detected_objects": design.detected_objects,
+        "budget": design.budget,
+        "design_tips": design.design_tips,
+        "total_cost_inr": design.total_cost_inr,
+        "metadata": design.metadata,
+        "created_at": datetime.utcnow(),
+        "views": 0,
+        "shares": 0
+    }
+    
+    await mongo.designs.insert_one(design_doc)
+    
+    # Update user's design count
+    await mongo.users.update_one(
+        {"_id": design.user_id},
+        {"$inc": {"designs_count": 1}}
+    )
+    
+    return {
+        "design_id": design_id,
+        "message": "Design saved successfully",
+        "shareable_link": f"https://artistry.ai/designs/{design_id}"  # TODO: Update with actual domain
+    }
+
+@app.get("/designs/user/{user_id}")
+async def get_user_designs(user_id: str, limit: int = 10, skip: int = 0):
+    """
+    Retrieve all designs for a user
+    Supports pagination
+    """
+    if not mongo:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
+    # Get designs from database
+    cursor = mongo.designs.find({"user_id": user_id}).sort("created_at", -1).skip(skip).limit(limit)
+    designs = await cursor.to_list(length=limit)
+    
+    # Get total count
+    total_count = await mongo.designs.count_documents({"user_id": user_id})
+    
+    return {
+        "designs": designs,
+        "total_count": total_count,
+        "page": skip // limit + 1,
+        "page_size": limit
+    }
+
+@app.get("/designs/share/{design_id}")
+async def get_shareable_design(design_id: str):
+    """
+    Get public shareable version of design
+    Increments view count
+    """
+    if not mongo:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
+    # Find design
+    design = await mongo.designs.find_one({"_id": design_id})
+    if not design:
+        raise HTTPException(status_code=404, detail="Design not found")
+    
+    # Increment view count
+    await mongo.designs.update_one(
+        {"_id": design_id},
+        {"$inc": {"views": 1}}
+    )
+    
+    # Get user info (without sensitive data)
+    user = await mongo.users.find_one({"_id": design["user_id"]}, {"password_hash": 0})
+    
+    return {
+        "design_id": design_id,
+        "generated_image": design["generated_image_b64"],
+        "original_image": design["original_image_b64"],
+        "budget": design["budget"],
+        "design_tips": design["design_tips"],
+        "total_cost_inr": design["total_cost_inr"],
+        "created_at": design["created_at"],
+        "created_by": user["name"] if user else "Anonymous",
+        "views": design["views"],
+        "shares": design["shares"]
+    }
+
+@app.post("/designs/share")
+async def share_design(req: ShareDesignRequest):
+    """
+    Generate shareable link for design
+    Track shares for analytics
+    """
+    if not mongo:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
+    # Find design
+    design = await mongo.designs.find_one({"_id": req.design_id})
+    if not design:
+        raise HTTPException(status_code=404, detail="Design not found")
+    
+    # Increment share count
+    await mongo.designs.update_one(
+        {"_id": req.design_id},
+        {"$inc": {"shares": 1}}
+    )
+    
+    # Generate platform-specific share links
+    base_url = f"https://artistry.ai/designs/{req.design_id}"  # TODO: Update with actual domain
+    
+    share_links = {
+        "link": base_url,
+        "whatsapp": f"https://wa.me/?text=Check%20out%20my%20room%20redesign!%20{base_url}",
+        "facebook": f"https://www.facebook.com/sharer/sharer.php?u={base_url}",
+        "twitter": f"https://twitter.com/intent/tweet?url={base_url}&text=Check%20out%20my%20AI%20room%20redesign!",
+        "pinterest": f"https://pinterest.com/pin/create/button/?url={base_url}",
+        "linkedin": f"https://www.linkedin.com/sharing/share-offsite/?url={base_url}"
+    }
+    
+    return {
+        "design_id": req.design_id,
+        "platform": req.platform,
+        "share_url": share_links.get(req.platform, base_url),
+        "all_share_options": share_links
+    }
+
+@app.delete("/designs/{design_id}")
+async def delete_design(design_id: str, user_id: str):
+    """
+    Delete a design (user must own the design)
+    """
+    if not mongo:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
+    # Find design and verify ownership
+    design = await mongo.designs.find_one({"_id": design_id})
+    if not design:
+        raise HTTPException(status_code=404, detail="Design not found")
+    
+    if design["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this design")
+    
+    # Delete design
+    await mongo.designs.delete_one({"_id": design_id})
+    
+    # Update user's design count
+    await mongo.users.update_one(
+        {"_id": user_id},
+        {"$inc": {"designs_count": -1}}
+    )
+    
+    return {"message": "Design deleted successfully"}
+
 
