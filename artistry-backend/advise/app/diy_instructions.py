@@ -57,7 +57,7 @@ DIY_INSTRUCTIONS = {
                 "description": "Place rod on brackets. Secure with provided clips or screws. Test by moving rod left-right.",
                 "duration_minutes": 10,
                 "tips": ["Rod should slide smoothly in brackets", "Don't overtighten screws"],
-                "video_url": null
+                "video_url": None
             },
             {
                 "step": 6,
@@ -167,7 +167,7 @@ DIY_INSTRUCTIONS = {
                 "description": "Let paint dry for 24 hours before moving furniture back. Clean brushes and rollers with water (for water-based paints). Reinstall switch plates and decorations.",
                 "duration_minutes": 60,
                 "tips": ["Open windows for ventilation", "Wash tools immediately after use", "Store leftover paint for touch-ups"],
-                "video_url": null
+                "video_url": None
             }
         ],
         "materials_checklist": [
@@ -234,7 +234,7 @@ DIY_INSTRUCTIONS = {
                 "description": "Connect left and right side rails to headboard and footboard. Ensure brackets click into place securely. Some beds use hook-and-pin system.",
                 "duration_minutes": 30,
                 "tips": ["Lift bed slightly when connecting rails", "Listen for 'click' sound on bracket beds", "Test stability by shaking gently"],
-                "video_url": null
+                "video_url": None
             },
             {
                 "step": 4,
@@ -250,7 +250,7 @@ DIY_INSTRUCTIONS = {
                 "description": "Go through all screws and tighten fully. Use spirit level to check if bed is level. Adjust leg height if needed (some beds have adjustable feet).",
                 "duration_minutes": 20,
                 "tips": ["Tighten screws in star pattern for even pressure", "Check for wobbling by pushing bed gently", "Place bed away from wall initially for easy access"],
-                "video_url": null
+                "video_url": None
             },
             {
                 "step": 6,
@@ -258,7 +258,7 @@ DIY_INSTRUCTIONS = {
                 "description": "Position mattress on slats. Test bed by sitting on edges and center. Check for any creaking or movement. Re-tighten if needed.",
                 "duration_minutes": 15,
                 "tips": ["Let mattress expand (if foam) for 24 hours", "Use mattress protector to keep warranty valid", "Bed screws may need re-tightening after 2-3 months of use"],
-                "video_url": null
+                "video_url": None
             }
         ],
         "materials_checklist": [
@@ -325,7 +325,7 @@ DIY_INSTRUCTIONS = {
                 "description": "Check junction box for damage. Clean area. Identify wires: Live (red/brown), Neutral (blue/black), Earth (green/yellow).",
                 "duration_minutes": 10,
                 "tips": ["Junction box should be securely mounted", "If wires are damaged, call electrician", "Use wire stripper to expose 1cm of wire if needed"],
-                "video_url": null
+                "video_url": None
             },
             {
                 "step": 4,
@@ -342,7 +342,7 @@ DIY_INSTRUCTIONS = {
                 "description": "Align fixture with junction box. Screw fixture to ceiling using provided screws. Ensure tight fit against ceiling.",
                 "duration_minutes": 15,
                 "tips": ["Get helper to hold heavy fixtures", "Don't pinch wires while mounting", "Use spring-loaded mount for heavy chandeliers"],
-                "video_url": null
+                "video_url": None
             },
             {
                 "step": 6,
@@ -350,7 +350,7 @@ DIY_INSTRUCTIONS = {
                 "description": "Install LED bulbs (check wattage rating). Turn on circuit breaker. Test light switch. Check for flickering or buzzing sounds.",
                 "duration_minutes": 10,
                 "tips": ["Use LED bulbs to save electricity (80% savings vs incandescent)", "If light doesn't work, turn off power and recheck connections", "Dimmer switch needs dimmable bulbs"],
-                "video_url": null
+                "video_url": None
             }
         ],
         "materials_checklist": [
@@ -439,3 +439,4 @@ def get_diy_instructions(item_name: str) -> dict:
             "note": f"Detailed instructions for {item_name} not available. Consult product manual or hire professional.",
             "recommendation": "Professional installation recommended"
         }
+
