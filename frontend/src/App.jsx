@@ -6,6 +6,7 @@ import AIDesign from "./pages/AIDesign"
 import About from "./pages/About"
 import Login from "./pages/Login"
 import EnhancedWorkflow from "./pages/EnhancedWorkflow"
+import MVPWorkflow from "./pages/MVPWorkflow"
 
 function App() {
   return (
@@ -18,6 +19,16 @@ function App() {
               <>
                 <Navbar />
                 <Home />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/mvp"
+            element={
+              <>
+                <Navbar />
+                <MVPWorkflow />
                 <Footer />
               </>
             }

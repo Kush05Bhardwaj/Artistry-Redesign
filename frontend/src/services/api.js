@@ -269,33 +269,334 @@ export const generateDesign = async (
 }
 
 /**
- * GATEWAY SERVICE (Port 8000)
- * Save design to MongoDB
+ * ===========================================
+ * NEW MVP FEATURES - PHASE 1
+ * ===========================================
  */
-export const saveDesign = async (designData) => {
+
+/**
+ * COST ESTIMATION (NEW)
+ * Get India-specific pricing for detected objects
+ */
+export const estimateTotalCost = async (detectedObjects, budget = 'medium', roomSizeSqft = 150) => {
   try {
-    const response = await fetch(`${API_GATEWAY}/api/designs`, {
+    const response = await fetch(`${ADVISE_API}/estimate/total-cost`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        originalImage: designData.originalImage,
-        detectedObjects: designData.detectedObjects,
-        segmentedImage: designData.segmentedImage,
-        advice: designData.advice,
-        generatedImage: designData.generatedImage,
-        prompt: designData.prompt,
-        timestamp: new Date().toISOString()
+        detected_objects: detectedObjects,
+        budget: budget,
+        room_size_sqft: roomSizeSqft
       }),
     })
 
     await handleApiError(response)
-    return await response.json()
+    const data = await response.json()
+    
+    return {
+      budgetTier: data.budget_tier,
+      totalCostInr: data.total_cost_inr,
+      breakdown: data.breakdown,
+      perItemCosts: data.per_item_costs,
+      diyVsProfessional: data.diy_vs_professional,
+      roomSizeSqft: data.room_size_sqft,
+      itemsCount: data.items_count,
+      currency: data.currency
+    }
   } catch (error) {
-    console.error('Gateway API Error:', error)
+    console.error('Cost Estimation API Error:', error)
+    throw new Error(`Cost estimation failed: ${error.message}`)
+  }
+}
+
+/**
+ * DIY INSTRUCTIONS (NEW)
+ * Get step-by-step DIY guidance
+ */
+export const getDIYInstructions = async (item, budget = 'medium') => {
+  try {
+    const response = await fetch(`${ADVISE_API}/diy/instructions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        item: item,
+        budget: budget
+      }),
+    })
+
+    await handleApiError(response)
+    const data = await response.json()
+    
+    return {
+      item: data.item,
+      difficulty: data.difficulty,
+      estimatedTimeHours: data.estimated_time_hours,
+      skillLevel: data.skill_level,
+      totalCostDiyInr: data.total_cost_diy_inr,
+      totalCostProfessionalInr: data.total_cost_professional_inr,
+      savingsInr: data.savings_inr,
+      steps: data.steps,
+      toolsNeeded: data.tools_needed,
+      materialsChecklist: data.materials_checklist,
+      safetyTips: data.safety_tips,
+      commonMistakes: data.common_mistakes,
+      proTips: data.pro_tips,
+      professionalOption: data.professional_option
+    }
+  } catch (error) {
+    console.error('DIY Instructions API Error:', error)
+    throw new Error(`DIY instructions failed: ${error.message}`)
+  }
+}
+
+/**
+ * USER AUTHENTICATION (NEW)
+ * Sign up new user
+ */
+export const signupUser = async (email, password, name) => {
+  try {
+    const response = await fetch(`${API_GATEWAY}/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password,
+        name: name
+      }),
+    })
+
+    await handleApiError(response)
+    const data = await response.json()
+    
+    // Store token in localStorage
+    if (data.token) {
+      localStorage.setItem('artistry_token', data.token)
+      localStorage.setItem('artistry_user', JSON.stringify({
+        id: data.user_id,
+        email: data.email,
+        name: data.name
+      }))
+    }
+    
+    return {
+      userId: data.user_id,
+      email: data.email,
+      name: data.name,
+      token: data.token,
+      createdAt: data.created_at
+    }
+  } catch (error) {
+    console.error('Signup API Error:', error)
+    throw new Error(`Signup failed: ${error.message}`)
+  }
+}
+
+/**
+ * USER AUTHENTICATION (NEW)
+ * Login existing user
+ */
+export const loginUser = async (email, password) => {
+  try {
+    const response = await fetch(`${API_GATEWAY}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password
+      }),
+    })
+
+    await handleApiError(response)
+    const data = await response.json()
+    
+    // Store token in localStorage
+    if (data.token) {
+      localStorage.setItem('artistry_token', data.token)
+      localStorage.setItem('artistry_user', JSON.stringify({
+        id: data.user_id,
+        email: data.email,
+        name: data.name
+      }))
+    }
+    
+    return {
+      userId: data.user_id,
+      email: data.email,
+      name: data.name,
+      token: data.token
+    }
+  } catch (error) {
+    console.error('Login API Error:', error)
+    throw new Error(`Login failed: ${error.message}`)
+  }
+}
+
+/**
+ * USER AUTHENTICATION (NEW)
+ * Verify token
+ */
+export const verifyToken = async (token) => {
+  try {
+    const response = await fetch(`${API_GATEWAY}/auth/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        token: token
+      }),
+    })
+
+    await handleApiError(response)
+    const data = await response.json()
+    
+    return {
+      valid: data.valid,
+      userId: data.user_id,
+      email: data.email
+    }
+  } catch (error) {
+    console.error('Token Verification API Error:', error)
+    // Clear invalid token
+    localStorage.removeItem('artistry_token')
+    localStorage.removeItem('artistry_user')
+    return { valid: false }
+  }
+}
+
+/**
+ * Get current user from localStorage
+ */
+export const getCurrentUser = () => {
+  const userStr = localStorage.getItem('artistry_user')
+  return userStr ? JSON.parse(userStr) : null
+}
+
+/**
+ * Logout user
+ */
+export const logoutUser = () => {
+  localStorage.removeItem('artistry_token')
+  localStorage.removeItem('artistry_user')
+}
+
+/**
+ * SAVE & SHARE DESIGNS (NEW)
+ * Save design to MongoDB
+ */
+export const saveDesignToCloud = async (designData) => {
+  try {
+    const token = localStorage.getItem('artistry_token')
+    const user = getCurrentUser()
+    
+    const response = await fetch(`${API_GATEWAY}/designs/save`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
+      body: JSON.stringify({
+        user_id: user?.id || 'guest',
+        design_name: designData.designName || 'Untitled Design',
+        room_type: designData.roomType || 'bedroom',
+        original_image: designData.originalImage,
+        generated_image: designData.generatedImage,
+        detected_objects: designData.detectedObjects || [],
+        suggestions: designData.suggestions || [],
+        cost_estimate: designData.costEstimate || null
+      }),
+    })
+
+    await handleApiError(response)
+    const data = await response.json()
+    
+    return {
+      designId: data.design_id,
+      message: data.message,
+      savedAt: data.saved_at
+    }
+  } catch (error) {
+    console.error('Save Design API Error:', error)
     throw new Error(`Failed to save design: ${error.message}`)
   }
+}
+
+/**
+ * SAVE & SHARE DESIGNS (NEW)
+ * Generate shareable link
+ */
+export const shareDesign = async (designId, platform = 'whatsapp') => {
+  try {
+    const response = await fetch(`${API_GATEWAY}/designs/share`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        design_id: designId,
+        platform: platform
+      }),
+    })
+
+    await handleApiError(response)
+    const data = await response.json()
+    
+    return {
+      shareUrl: data.share_url,
+      platform: data.platform,
+      message: data.message
+    }
+  } catch (error) {
+    console.error('Share Design API Error:', error)
+    throw new Error(`Failed to share design: ${error.message}`)
+  }
+}
+
+/**
+ * List user's saved designs
+ */
+export const listUserDesigns = async (limit = 10) => {
+  try {
+    const user = getCurrentUser()
+    if (!user) {
+      throw new Error('User not logged in')
+    }
+    
+    const response = await fetch(`${API_GATEWAY}/designs/list?user_id=${user.id}&limit=${limit}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    await handleApiError(response)
+    const data = await response.json()
+    
+    return {
+      designs: data.designs,
+      count: data.count
+    }
+  } catch (error) {
+    console.error('List Designs API Error:', error)
+    throw new Error(`Failed to list designs: ${error.message}`)
+  }
+}
+
+/**
+ * GATEWAY SERVICE (Port 8000)
+ * Save design to MongoDB (Legacy - kept for compatibility)
+ */
+export const saveDesign = async (designData) => {
+  // Use new saveDesignToCloud function
+  return saveDesignToCloud(designData)
 }
 
 /**

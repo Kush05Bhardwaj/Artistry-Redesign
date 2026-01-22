@@ -44,8 +44,14 @@ export default function Home() {
               <p className="text-gray-700 text-l mb-8">Fast. Affordable. DIY. Your dream home is just a photo away.</p>
               <div className="flex gap-4">
                 <Link
-                  to="/workflow"
-                  className="bg-amber-700 text-white px-8 py-3 rounded hover:bg-amber-800 transition-colors font-medium"
+                  to="/mvp"
+                  className="bg-amber-700 text-white px-8 py-3 rounded hover:bg-amber-800 transition-colors font-medium shadow-lg"
+                >
+                  Try MVP Workflow ✨
+                </Link>
+                <Link
+                  to="/enhanced-workflow"
+                  className="bg-white text-amber-700 border-2 border-amber-700 px-8 py-3 rounded hover:bg-amber-50 transition-colors font-medium"
                 >
                   Try Full AI Workflow
                 </Link>
