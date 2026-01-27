@@ -14,8 +14,10 @@ import cv2  # for real Canny edge detection
 from typing import Optional, List, Dict
 import httpx
 import os
+import gc
+from functools import lru_cache
 
-app = FastAPI(title="Stable Diffusion + ControlNet Service")
+app = FastAPI(title="Stable Diffusion + ControlNet Service (Optimized)")
 
 # Add CORS middleware for frontend integration
 app.add_middleware(
@@ -74,6 +76,22 @@ async def load_models():
         pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
         pipe.enable_attention_slicing()  # Helps reduce memory usage
         inpaint_pipe.enable_attention_slicing()
+        
+        # Enable VAE slicing for lower VRAM usage
+        pipe.enable_vae_slicing()
+        inpaint_pipe.enable_vae_slicing()
+        
+        # Enable CUDA optimizations if available
+        if device == "cuda":
+            torch.backends.cudnn.benchmark = True
+            # Enable memory efficient attention (xformers alternative)
+            try:
+                pipe.enable_xformers_memory_efficient_attention()
+                inpaint_pipe.enable_xformers_memory_efficient_attention()
+                print("✓ xformers memory efficient attention enabled")
+            except:
+                print("⚠ xformers not available, using default attention")
+        
         print(f"✓ Generate service ready on {device} (img2img + inpainting modes)")
     except Exception as e:
         print(f"⚠ Warning: Failed to load models: {e}")

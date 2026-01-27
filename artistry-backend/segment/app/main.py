@@ -7,9 +7,11 @@ import os
 import sys
 import cv2
 from mobile_sam import sam_model_registry, SamPredictor
+from functools import lru_cache
+import gc
 
 
-app = FastAPI(title="MobileSAM Service")
+app = FastAPI(title="MobileSAM Service (Optimized)")
 
 # Add CORS middleware for frontend integration
 app.add_middleware(
@@ -22,12 +24,33 @@ app.add_middleware(
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model_type = "vit_t"  # tiny variant for MobileSAM
-# Use relative path from current directory
-sam_checkpoint = os.path.join(os.path.dirname(__file__), "mobile_sam.pt")
-if not os.path.exists(sam_checkpoint):
-    sam_checkpoint = "mobile_sam.pt"  # Fallback to current directory
-sam = sam_model_registry[model_type](checkpoint=sam_checkpoint).to(device)
-predictor = SamPredictor(sam)
+
+# Lazy loading for optimization
+sam = None
+predictor = None
+
+def get_sam_predictor():
+    """Lazy load SAM model with caching"""
+    global sam, predictor
+    if predictor is None:
+        # Use relative path from current directory
+        sam_checkpoint = os.path.join(os.path.dirname(__file__), "mobile_sam.pt")
+        if not os.path.exists(sam_checkpoint):
+            sam_checkpoint = "mobile_sam.pt"  # Fallback to current directory
+        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint).to(device)
+        predictor = SamPredictor(sam)
+        
+        # Enable optimizations for CUDA
+        if device == "cuda":
+            torch.backends.cudnn.benchmark = True
+    return predictor
+
+@app.on_event("startup")
+async def startup_event():
+    """Preload SAM model during startup"""
+    print(f"Loading MobileSAM model on {device}...")
+    get_sam_predictor()
+    print("✓ MobileSAM model loaded and optimized")
 
 @app.get("/")
 def root():
@@ -42,10 +65,16 @@ def health():
 class SegmentReq(BaseModel):
     image_b64: str
     bboxes: list | None = []
+    enable_edge_refinement: bool = True  # Toggle for edge refinement
 
-def decode_image(b64):
+@lru_cache(maxsize=64)
+def decode_image_cached(b64: str):
+    """Cache decoded images"""
     img = Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB")
     return np.array(img)
+
+def decode_image(b64):
+    return decode_image_cached(b64)
 
 def generate_canny_edges(image, low_threshold=50, high_threshold=150):
     """
@@ -83,11 +112,13 @@ def refine_mask_with_edges(mask, edge_map, dilation_kernel_size=3):
 
 @app.post("/segment")
 def segment(req: SegmentReq):
+    """Optimized segmentation with optional edge refinement"""
     image = decode_image(req.image_b64)
+    predictor = get_sam_predictor()
     predictor.set_image(image)
     
-    # Generate edge map for refinement
-    edge_map = generate_canny_edges(image)
+    # Generate edge map for refinement if enabled
+    edge_map = generate_canny_edges(image) if req.enable_edge_refinement else None
     
     masks = []
     for box in req.bboxes or []:
@@ -100,12 +131,20 @@ def segment(req: SegmentReq):
         )
         mask_raw = mask[0][0].cpu().numpy()
         
-        # EDGE REFINEMENT: sharpen boundaries
-        mask_refined = refine_mask_with_edges(mask_raw, edge_map)
+        # EDGE REFINEMENT: sharpen boundaries (if enabled)
+        if req.enable_edge_refinement and edge_map is not None:
+            mask_refined = refine_mask_with_edges(mask_raw, edge_map)
+        else:
+            mask_refined = mask_raw
         
         mask_img = (mask_refined * 255).astype(np.uint8)
         mask_b64 = base64.b64encode(Image.fromarray(mask_img).tobytes()).decode()
         masks.append({"bbox": box, "mask_b64": mask_b64})
+    
+    # Clean up memory
+    if device == "cuda":
+        torch.cuda.empty_cache()
+        
     return {"masks": masks}
 
 @app.post("/segment/")

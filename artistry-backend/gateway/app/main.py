@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
 import httpx
 from dotenv import load_dotenv
+from functools import lru_cache
 
 load_dotenv()
 # MongoDB is optional - only needed for full workflow persistence
@@ -24,7 +25,7 @@ ADVISE_URL = os.getenv("ADVISE_URL", "http://localhost:8003/advise/")
 GENERATE_URL = os.getenv("GENERATE_URL", "http://localhost:8004/generate/")
 COMMERCE_URL = os.getenv("COMMERCE_URL", "http://localhost:8005")
 
-app = FastAPI(title="Artistry Gateway")
+app = FastAPI(title="Artistry Gateway (Optimized)")
 
 # Add CORS middleware for frontend integration
 app.add_middleware(
@@ -47,7 +48,26 @@ if MONGO_URI:
 else:
     print("⚠ MongoDB not configured - running without persistence")
 
+# Optimized HTTP client with connection pooling
 client_timeout = httpx.Timeout(120.0, connect=10.0)
+http_client = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize persistent HTTP client with connection pooling"""
+    global http_client
+    http_client = httpx.AsyncClient(
+        timeout=client_timeout,
+        limits=httpx.Limits(max_keepalive_connections=20, max_connections=50)
+    )
+    print("✓ HTTP client initialized with connection pooling")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close HTTP client on shutdown"""
+    if http_client:
+        await http_client.aclose()
+    print("✓ HTTP client closed")
 
 @app.get("/")
 def root():
